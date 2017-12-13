@@ -700,8 +700,8 @@ public partial class Database
             var query = @"
             INSERT INTO GUILD_INFO
             SET
-                guild = @guild,
-                notice = @notice,
+                name = @guild,
+                notice = @notice
             ON DUPLICATE KEY UPDATE
                 notice = @notice";
             
