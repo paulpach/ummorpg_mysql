@@ -9,7 +9,7 @@ There are a few changes I made in this driver not present in the sqlite version:
 * primary keys and indexes to the tables.  This can greatly improve performance when you have lots of users
 * Native mysql types,  like boolean and Datetime,   no awkard conversions
 * Foreign keys,  make it really easy to do maintenance on your database, and ensure data integrity.
-
+* Use utf8, make character names in any language
 
 
 To install follow these instructions:
