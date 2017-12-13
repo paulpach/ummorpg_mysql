@@ -559,7 +559,44 @@ public partial class Database
             if (!online)
                 onlineTimestamp = DateTime.Now;
 
-            ExecuteNonQuery(command, "REPLACE INTO characters VALUES (@name, @account, @class, @x, @y, @z, @level, @health, @mana, @strength, @intelligence, @experience, @skillExperience, @gold, @coins, @online, 0)",
+            var query = @"
+            INSERT INTO characters 
+            SET
+                name=@name,
+                account=@account,
+                class = @class,
+                x = @x,
+                y = @y,
+                z = @z,
+                level = @level,
+                mana = @mana,
+                strength = @strength,
+                intelligence = @intelligence,
+                experience = @experience,
+                skillExperience = @skillExperience,
+                gold = @gold,
+                coins = @coins,
+                online = @online,
+                deleted = 0 
+            ON DUPLICATE KEY UPDATE 
+                account=@account,
+                class = @class,
+                x = @x,
+                y = @y,
+                z = @z,
+                level = @level,
+                mana = @mana,
+                strength = @strength,
+                intelligence = @intelligence,
+                experience = @experience,
+                skillExperience = @skillExperience,
+                gold = @gold,
+                coins = @coins,
+                online = @online,
+                deleted = 0
+            ";
+
+            ExecuteNonQuery(command, query,
                             new SqlParameter("@name", player.name),
                             new SqlParameter("@account", player.account),
                             new SqlParameter("@class", player.className),
@@ -660,7 +697,16 @@ public partial class Database
 
 
             // guild info
-            ExecuteNonQuery(command, "REPLACE INTO guild_info VALUES (@guild, @notice)",
+            var query = @"
+            INSERT INTO GUILD_INFO
+            SET
+                guild = @guild,
+                notice = @notice,
+            ON DUPLICATE KEY UPDATE
+                notice = @notice";
+            
+                // guild info
+            ExecuteNonQuery(command,query ,
                             new SqlParameter("@guild", guild),
                             new SqlParameter("@notice", notice));
 
