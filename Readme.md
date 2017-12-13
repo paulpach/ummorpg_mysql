@@ -18,11 +18,12 @@ To install follow these instructions:
 2) Install mysql
 3) Create a database and ensure you can connect to it from your server
 4) export these environment variables before running unity or your server:
-	 MYSQL_HOST=<your database server>
-	 MYSQL_DATABASE=<your database name>
-	 MYSQL_USER=<user name to connect to your database>
-	 MYSQL_PASSWORD=<password to connect to your database>
-	 MYSQL_PORT=<port to your database,  typically 3306>
+`  MYSQL_HOST=<your database server>
+   MYSQL_DATABASE=<your database name>
+   MYSQL_USER=<user name to connect to your database>
+   MYSQL_PASSWORD=<password to connect to your database>
+   MYSQL_PORT=<port to your database,  typically 3306>`
+
 5) Run Unity and open your project
 6) Delete Database.cs that comes with uMMORPG
 7) add these files to your project
