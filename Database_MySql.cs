@@ -265,7 +265,6 @@ public partial class Database
     public static void ExecuteNonQuery(MySqlCommand command, string sql, params SqlParameter[] args)
     {
         command.CommandText = sql;
-        command.Prepare();
 
         command.Parameters.Clear();
 
