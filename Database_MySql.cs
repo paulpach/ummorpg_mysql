@@ -16,7 +16,7 @@ using SqlParameter = MySql.Data.MySqlClient.MySqlParameter;
 
 /// <summary>
 /// Database class for mysql
-/// Port of the sqlite database class from ummorpg
+/// Ported from the original uMMORPG version 1.98  Database.cs
 /// </summary>
 public partial class Database
 {
@@ -35,8 +35,8 @@ public partial class Database
                 var connectionStringBuilder = new MySqlConnectionStringBuilder
                 {
                     Server = GetEnv("MYSQL_HOST") ?? "localhost",
-                    Database = GetEnv("MYSQL_DATABASE") ?? "cubica",
-                    UserID = GetEnv("MYSQL_USER") ?? "cubica",
+                    Database = GetEnv("MYSQL_DATABASE") ?? "ummorpg",
+                    UserID = GetEnv("MYSQL_USER") ?? "ummorpg",
                     Password = GetEnv("MYSQL_PASSWORD") ?? "",
                     Port = GetUIntEnv("MYSQL_PORT", 3306),
                     CharacterSet = "utf8"
@@ -710,5 +710,3 @@ public partial class Database
         return result;
     }
 }
-
-#endif
