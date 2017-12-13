@@ -515,7 +515,7 @@ public partial class Database
 
                     // load members list
                     var members = new List<GuildMember>();
-                    table = ExecuteReader("SELECT character, rank FROM guild_members WHERE guild=@guild", new SqlParameter("@guild", player.guildName));
+                    table = ExecuteReader("SELECT `character`, rank FROM guild_members WHERE guild=@guild", new SqlParameter("@guild", player.guildName));
                     foreach (var row in table) {
                         var member = new GuildMember();
                         member.name = (string)row[0];
