@@ -13,6 +13,7 @@ using MySql.Data.MySqlClient;                   // From MySql.Data.dll in Plugin
 
 using SqlParameter = MySql.Data.MySqlClient.MySqlParameter;
 
+using Mono.Data.Sqlite;
 
 /// <summary>
 /// Database class for mysql
@@ -49,9 +50,9 @@ public partial class Database
         }
     }
 
-    private static void Transaction(Action<MySqlCommand> action)
+        private static void Transaction(Action<MySqlCommand> action)
     {
-        using (var connection = new MySqlConnection(ConnectionString) )
+        using (var connection = new MySqlConnection(ConnectionString))
         {
 
             connection.Open();
@@ -104,15 +105,15 @@ public partial class Database
     private static void InitializeSchema()
     {
 
-        ExecuteNonQuery(@"
+        ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS accounts (
             name VARCHAR(16) NOT NULL,
             password CHAR(40) NOT NULL,
-            banned BOOLEAN NOT NULL,
+            banned BOOLEAN NOT NULL DEFAULT 0,
             PRIMARY KEY(name)
         ) CHARACTER SET=utf8");
 
-        ExecuteNonQuery(@"
+        ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS characters(
             name VARCHAR(16) NOT NULL,
             account VARCHAR(16) NOT NULL,
@@ -121,15 +122,15 @@ public partial class Database
             x FLOAT NOT NULL,
         	y FLOAT NOT NULL,
             z FLOAT NOT NULL,
-        	level INT NOT NULL,
+        	level INT NOT NULL DEFAULT 1,
             health INT NOT NULL,
         	mana INT NOT NULL,
-            strength INT NOT NULL,
-        	intelligence INT NOT NULL,
-            experience BIGINT NOT NULL,
-        	skillExperience BIGINT NOT NULL,
-            gold BIGINT NOT NULL,
-        	coins BIGINT NOT NULL,
+            strength INT NOT NULL DEFAULT 0,
+        	intelligence INT NOT NULL DEFAULT 0,
+            experience BIGINT NOT NULL DEFAULT 0,
+        	skillExperience BIGINT NOT NULL DEFAULT 0,
+            gold BIGINT NOT NULL DEFAULT 0,
+        	coins BIGINT NOT NULL DEFAULT 0,
             online TIMESTAMP,
 
             deleted BOOLEAN NOT NULL,
@@ -142,7 +143,7 @@ public partial class Database
         ) CHARACTER SET=utf8");
 
 
-        ExecuteNonQuery(@"
+        ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS character_inventory(
             `character` VARCHAR(16) NOT NULL,
             slot INT NOT NULL,
@@ -159,7 +160,7 @@ public partial class Database
                 ON DELETE CASCADE ON UPDATE CASCADE
         ) CHARACTER SET=utf8");
 
-        ExecuteNonQuery(@"
+        ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS character_equipment(
             `character` VARCHAR(16) NOT NULL,
             slot INT NOT NULL,
@@ -173,7 +174,7 @@ public partial class Database
                 ON DELETE CASCADE ON UPDATE CASCADE
          ) CHARACTER SET=utf8");
 
-        ExecuteNonQuery(@"
+        ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS character_skills(
             `character` VARCHAR(16) NOT NULL,
             name VARCHAR(50) NOT NULL,
@@ -190,7 +191,7 @@ public partial class Database
         ) CHARACTER SET=utf8");
 
 
-        ExecuteNonQuery(@"
+        ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS character_quests(
             `character` VARCHAR(16) NOT NULL,
             name VARCHAR(50) NOT NULL,
@@ -204,7 +205,7 @@ public partial class Database
         ) CHARACTER SET=utf8");
 
 
-        ExecuteNonQuery(@"
+        ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS character_orders(
             orderid BIGINT NOT NULL AUTO_INCREMENT,
             `character` VARCHAR(16) NOT NULL,
@@ -219,7 +220,7 @@ public partial class Database
         ) CHARACTER SET=utf8");
 
 
-        ExecuteNonQuery(@"
+        ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS guild_info(
             name VARCHAR(16) NOT NULL,
             notice TEXT NOT NULL,
@@ -227,7 +228,7 @@ public partial class Database
         ) CHARACTER SET=utf8");
 
 
-        ExecuteNonQuery(@"
+        ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS guild_members(
             guild VARCHAR(16) NOT NULL,
             `character` VARCHAR(16) NOT NULL,
@@ -257,15 +258,16 @@ public partial class Database
     #region Helper Functions
 
     // run a query that doesn't return anything
-    public static void ExecuteNonQuery(string sql, params SqlParameter[] args)
+    private static void ExecuteNonQueryMySql(string sql, params SqlParameter[] args)
     {
         MySqlHelper.ExecuteNonQuery(ConnectionString, sql, args);
     }
 
-    public static void ExecuteNonQuery(MySqlCommand command, string sql, params SqlParameter[] args)
-    {
-        command.CommandText = sql;
 
+    private static void ExecuteNonQuery(MySqlCommand command, string sql, params SqlParameter[] args)
+    {
+
+        command.CommandText = sql;
         command.Parameters.Clear();
 
         foreach (var arg in args)
@@ -277,13 +279,14 @@ public partial class Database
     }
 
     // run a query that returns a single value
-    public static object ExecuteScalar(string sql, params SqlParameter[] args)
+    private static object ExecuteScalarMysql(string sql, params SqlParameter[] args)
     {
         return MySqlHelper.ExecuteScalar(ConnectionString, sql, args);
     }
 
+   
     // run a query that returns several values
-    public static List<List<object>> ExecuteReader(string sql, params SqlParameter[] args)
+    private static List<List<object>> ExecuteReaderMysql(string sql, params SqlParameter[] args)
     {
         var result = new List<List<object>>();
 
@@ -300,10 +303,56 @@ public partial class Database
 
         return result;
     }
+
     #endregion
 
-        // account data ////////////////////////////////////////////////////////////
-    public static bool IsValidAccount(string account, string password) {
+    #region SqliteCompatibility
+
+    private static SqlParameter[] ToMysqlParameters(SqliteParameter[] args)
+    {
+        return args.Select(x => new SqlParameter(x.ParameterName, x.Value)).ToArray();
+    }
+
+    /// <summary>
+    /// Backwards compatible method.
+    /// Execute a statement that is not a query,  it translates sqliteparameters
+    /// into mysqlparameters
+    /// </summary>
+    /// <param name="sql">Sql.</param>
+    /// <param name="args">Arguments.</param>
+    public static void ExecuteNonQuery2(string sql, params SqliteParameter[] args)
+    {
+        ExecuteNonQueryMySql(sql, ToMysqlParameters(args));
+    }
+
+    /// <summary>
+    /// Backwards compatible method.
+    /// Execute a scalar query,  it translates sqliteparameters
+    /// into mysqlparameters
+    /// </summary>
+    /// <param name="sql">Sql.</param>
+    /// <param name="args">Arguments.</param>
+    public static object ExecuteScalar2(string sql, params SqliteParameter[] args)
+    {
+        return ExecuteScalarMysql(sql, ToMysqlParameters(args));
+    }
+
+    /// <summary>
+    /// Backwards compatible method.
+    /// Execute a query,  it translates sqliteparameters
+    /// into mysqlparameters
+    /// </summary>
+    /// <param name="sql">Sql.</param>
+    /// <param name="args">Arguments.</param>
+    public static List<List<object>> ExecuteReader2(string sql, params SqliteParameter[] args)
+    {
+        return ExecuteReaderMysql(sql, ToMysqlParameters(args));
+    }
+
+    #endregion
+    // account data ////////////////////////////////////////////////////////////
+    public static bool IsValidAccount(string account, string password)
+    {
         // this function can be used to verify account credentials in a database
         // or a content management system.
         //
@@ -343,15 +392,19 @@ public partial class Database
         // no CMS communication necessary and good enough for an Indie MMORPG.
 
         // not empty?
-        if (!Utils.IsNullOrWhiteSpace(account) && !Utils.IsNullOrWhiteSpace(password)) {
-            var table = ExecuteReader("SELECT password, banned FROM accounts WHERE name=@name", new SqlParameter("@name", account));
-            if (table.Count == 1) {
+        if (!Utils.IsNullOrWhiteSpace(account) && !Utils.IsNullOrWhiteSpace(password))
+        {
+            var table = ExecuteReaderMysql("SELECT password, banned FROM accounts WHERE name=@name", new SqlParameter("@name", account));
+            if (table.Count == 1)
+            {
                 // account exists. check password and ban status.
                 var row = table[0];
                 return (string)row[0] == password && !(bool)row[1];
-            } else {
+            }
+            else
+            {
                 // account doesn't exist. create it.
-                ExecuteNonQuery("INSERT INTO accounts VALUES (@name, @password, 0)", new SqlParameter("@name", account), new SqlParameter("@password", password));
+                ExecuteNonQueryMySql("INSERT INTO accounts VALUES (@name, @password, 0)", new SqlParameter("@name", account), new SqlParameter("@password", password));
                 return true;
             }
         }
@@ -359,59 +412,65 @@ public partial class Database
     }
 
     // character data //////////////////////////////////////////////////////////
-    public static bool CharacterExists(string characterName) {
+    public static bool CharacterExists(string characterName)
+    {
         // checks deleted ones too so we don't end up with duplicates if we un-
         // delete one
-        return ((long)ExecuteScalar("SELECT Count(*) FROM characters WHERE name=@name", new SqlParameter("@name", characterName))) == 1;
+        return ((long)ExecuteScalarMysql("SELECT Count(*) FROM characters WHERE name=@name", new SqlParameter("@name", characterName))) == 1;
     }
 
-    public static void CharacterDelete(string characterName) {
+    public static void CharacterDelete(string characterName)
+    {
         // soft delete the character so it can always be restored later
-        ExecuteNonQuery("UPDATE characters SET deleted=1 WHERE name=@character", new SqlParameter("@character", characterName));
+        ExecuteNonQueryMySql("UPDATE characters SET deleted=1 WHERE name=@character", new SqlParameter("@character", characterName));
     }
 
     // returns a dict of<character name, character class=prefab name>
     // we really need the prefab name too, so that client character selection
     // can read all kinds of properties like icons, stats, 3D models and not
     // just the character name
-    public static Dictionary<string, string> CharactersForAccount(string account) {
+    public static Dictionary<string, string> CharactersForAccount(string account)
+    {
         var result = new Dictionary<string, string>();
 
-        var table = ExecuteReader("SELECT name, class FROM characters WHERE account=@account AND deleted=0", new SqlParameter("@account", account));
+        var table = ExecuteReaderMysql("SELECT name, class FROM characters WHERE account=@account AND deleted=0", new SqlParameter("@account", account));
         foreach (var row in table)
             result[(string)row[0]] = (string)row[1];
 
         return result;
     }
 
-    public static GameObject CharacterLoad(string characterName, List<Player> prefabs) {
-        var table = ExecuteReader("SELECT * FROM characters WHERE name=@name AND deleted=0", new SqlParameter("@name", characterName));
-        if (table.Count == 1) {
+    public static GameObject CharacterLoad(string characterName, List<Player> prefabs)
+    {
+        var table = ExecuteReaderMysql("SELECT * FROM characters WHERE name=@name AND deleted=0", new SqlParameter("@name", characterName));
+        if (table.Count == 1)
+        {
             var mainrow = table[0];
 
             // instantiate based on the class name
             string className = (string)mainrow[2];
             var prefab = prefabs.Find(p => p.name == className);
-            if (prefab != null) {
+            if (prefab != null)
+            {
                 var go = GameObject.Instantiate(prefab.gameObject);
                 var player = go.GetComponent<Player>();
 
-                player.name               = (string)mainrow[0];
-                player.account            = (string)mainrow[1];
-                player.className          = (string)mainrow[2];
-                float x                   = (float)mainrow[3];
-                float y                   = (float)mainrow[4];
-                float z                   = (float)mainrow[5];
-                Vector3 position          = new Vector3(x, y, z);
-                player.level              = (int)mainrow[6];
-                player.health             = (int)mainrow[7];
-                player.mana               = (int)mainrow[8];
-                player.strength           = (int)mainrow[9];
-                player.intelligence       = (int)mainrow[10];
-                player.experience         = (long)mainrow[11];
-                player.skillExperience    = (long)mainrow[12];
-                player.gold               = (long)mainrow[13];
-                player.coins              = (long)mainrow[14];
+                player.name = (string)mainrow[0];
+                player.account = (string)mainrow[1];
+                player.className = (string)mainrow[2];
+                float x = (float)mainrow[3];
+                float y = (float)mainrow[4];
+                float z = (float)mainrow[5];
+                Vector3 position = new Vector3(x, y, z);
+                player.level = (int)mainrow[6];
+                player.health = (int)mainrow[7];
+                player.mana = (int)mainrow[8];
+                player.strength = (int)mainrow[9];
+                player.intelligence = (int)mainrow[10];
+                player.experience = (long)mainrow[11];
+                player.skillExperience = (long)mainrow[12];
+                player.gold = (long)mainrow[13];
+                player.coins = (long)mainrow[14];
 
                 // try to warp to loaded position.
                 // => agent.warp is recommended over transform.position and
@@ -419,17 +478,20 @@ public partial class Database
                 // => warping might fail if we changed the world since last save
                 //    so we reset to start position if not on navmesh
                 player.agent.Warp(position);
-                if (!player.agent.isOnNavMesh) {
+                if (!player.agent.isOnNavMesh)
+                {
                     Transform start = NetworkManager.singleton.GetNearestStartPosition(position);
                     player.agent.Warp(start.position);
                     Debug.Log(player.name + " invalid position was reset");
                 }
 
                 // load inventory based on inventorySize (creates slots if none)
-                for (int i = 0; i < player.inventorySize; ++i) {
+                for (int i = 0; i < player.inventorySize; ++i)
+                {
                     // any saved data for that slot?
-                    table = ExecuteReader("SELECT name, valid, amount, petHealth, petLevel, petExperience FROM character_inventory WHERE `character`=@character AND slot=@slot;", new SqlParameter("@character", player.name), new SqlParameter("@slot", i));
-                    if (table.Count == 1) {
+                    table = ExecuteReaderMysql("SELECT name, valid, amount, petHealth, petLevel, petExperience FROM character_inventory WHERE `character`=@character AND slot=@slot;", new SqlParameter("@character", player.name), new SqlParameter("@slot", i));
+                    if (table.Count == 1)
+                    {
                         var row = table[0];
                         var item = new Item();
                         item.name = (string)row[0];
@@ -441,17 +503,21 @@ public partial class Database
 
                         // add item if template still exists, otherwise empty
                         player.inventory.Add(item.valid && item.TemplateExists() ? item : new Item());
-                    } else {
+                    }
+                    else
+                    {
                         // add empty slot or default item if any
                         player.inventory.Add(i < player.defaultItems.Length ? new Item(player.defaultItems[i]) : new Item());
                     }
                 }
 
                 // load equipment based on equipmentInfo (creates slots if none)
-                for (int i = 0; i < player.equipmentInfo.Length; ++i) {
+                for (int i = 0; i < player.equipmentInfo.Length; ++i)
+                {
                     // any saved data for that slot?
-                    table = ExecuteReader("SELECT name, valid, amount FROM character_equipment WHERE `character`=@character AND slot=@slot", new SqlParameter("@character", player.name), new SqlParameter("@slot", i));
-                    if (table.Count == 1) {
+                    table = ExecuteReaderMysql("SELECT name, valid, amount FROM character_equipment WHERE `character`=@character AND slot=@slot", new SqlParameter("@character", player.name), new SqlParameter("@slot", i));
+                    if (table.Count == 1)
+                    {
                         var row = table[0];
                         var item = new Item();
                         item.name = (string)row[0];
@@ -460,7 +526,9 @@ public partial class Database
 
                         // add item if template still exists, otherwise empty
                         player.equipment.Add(item.valid && item.TemplateExists() ? item : new Item());
-                    } else {
+                    }
+                    else
+                    {
                         // add empty slot or default item if any
                         EquipmentInfo info = player.equipmentInfo[i];
                         player.equipment.Add(info.defaultItem != null ? new Item(info.defaultItem) : new Item());
@@ -468,13 +536,15 @@ public partial class Database
                 }
 
                 // load skills based on skill templates (the others don't matter)
-                foreach (var template in player.skillTemplates) {
+                foreach (var template in player.skillTemplates)
+                {
                     // create skill based on template
                     var skill = new Skill(template);
 
                     // load saved data if any
-                    table = ExecuteReader("SELECT learned, level, castTimeEnd, cooldownEnd, buffTimeEnd FROM character_skills WHERE `character`=@character AND name=@name", new SqlParameter("@character", characterName), new SqlParameter("@name", template.name));
-                    foreach (var row in table) {
+                    table = ExecuteReaderMysql("SELECT learned, level, castTimeEnd, cooldownEnd, buffTimeEnd FROM character_skills WHERE `character`=@character AND name=@name", new SqlParameter("@character", characterName), new SqlParameter("@name", template.name));
+                    foreach (var row in table)
+                    {
                         skill.learned = (bool)row[0]; // sqlite has no bool
                         // make sure that 1 <= level <= maxlevel (in case we removed a skill
                         // level etc)
@@ -492,8 +562,9 @@ public partial class Database
                 }
 
                 // load quests
-                table = ExecuteReader("SELECT name, killed, completed FROM character_quests WHERE `character`=@character", new SqlParameter("@character", player.name));
-                foreach (var row in table) {
+                table = ExecuteReaderMysql("SELECT name, killed, completed FROM character_quests WHERE `character`=@character", new SqlParameter("@character", player.name));
+                foreach (var row in table)
+                {
                     var quest = new Quest();
                     quest.name = (string)row[0];
                     quest.killed = (int)row[1];
@@ -502,28 +573,34 @@ public partial class Database
                 }
 
                 // in a guild?
-                string guild = (string)ExecuteScalar("SELECT guild FROM guild_members WHERE `character`=@character", new SqlParameter("@character", player.name));
-                if (guild != null) {
+                string guild = (string)ExecuteScalarMysql("SELECT guild FROM guild_members WHERE `character`=@character", new SqlParameter("@character", player.name));
+                if (guild != null)
+                {
                     // load guild info
                     player.guildName = guild;
-                    table = ExecuteReader("SELECT notice FROM guild_info WHERE name=@guild", new SqlParameter("@guild", guild));
-                    if (table.Count == 1) {
+                    table = ExecuteReaderMysql("SELECT notice FROM guild_info WHERE name=@guild", new SqlParameter("@guild", guild));
+                    if (table.Count == 1)
+                    {
                         var row = table[0];
                         player.guild.notice = (string)row[0];
                     }
 
                     // load members list
                     var members = new List<GuildMember>();
-                    table = ExecuteReader("SELECT `character`, rank FROM guild_members WHERE guild=@guild", new SqlParameter("@guild", player.guildName));
-                    foreach (var row in table) {
+                    table = ExecuteReaderMysql("SELECT `character`, rank FROM guild_members WHERE guild=@guild", new SqlParameter("@guild", player.guildName));
+                    foreach (var row in table)
+                    {
                         var member = new GuildMember();
                         member.name = (string)row[0];
                         member.rank = (GuildRank)((int)row[1]);
                         member.online = Player.onlinePlayers.ContainsKey(member.name);
-                        if (member.name == player.name) {
+                        if (member.name == player.name)
+                        {
                             member.level = player.level;
-                        } else {
-                            object scalar = ExecuteScalar("SELECT level FROM characters WHERE name=@character", new SqlParameter("@character", member.name));
+                        }
+                        else
+                        {
+                            object scalar = ExecuteScalarMysql("SELECT level FROM characters WHERE name=@character", new SqlParameter("@character", member.name));
                             member.level = scalar != null ? (int)scalar : 1;
                         }
                         members.Add(member);
@@ -535,13 +612,15 @@ public partial class Database
                 Utils.InvokeMany(typeof(Database), null, "CharacterLoad_", player);
 
                 return go;
-            } else Debug.LogError("no prefab found for class: " + className);
+            }
+            else Debug.LogError("no prefab found for class: " + className);
         }
         return null;
     }
 
     // adds or overwrites character data in the database
-    public static void CharacterSave(Player player, bool online, bool useTransaction = true) {
+    public static void CharacterSave(Player player, bool online, bool useTransaction = true)
+    {
         // only use a transaction if not called within SaveMany transaction
         Transaction(command =>
         {
@@ -599,22 +678,22 @@ public partial class Database
             ";
 
             ExecuteNonQuery(command, query,
-                            new SqlParameter("@name", player.name),
-                            new SqlParameter("@account", player.account),
-                            new SqlParameter("@class", player.className),
-                            new SqlParameter("@x", player.transform.position.x),
-                            new SqlParameter("@y", player.transform.position.y),
-                            new SqlParameter("@z", player.transform.position.z),
-                            new SqlParameter("@level", player.level),
-                            new SqlParameter("@health", player.health),
-                            new SqlParameter("@mana", player.mana),
-                            new SqlParameter("@strength", player.strength),
-                            new SqlParameter("@intelligence", player.intelligence),
-                            new SqlParameter("@experience", player.experience),
-                            new SqlParameter("@skillExperience", player.skillExperience),
-                            new SqlParameter("@gold", player.gold),
-                            new SqlParameter("@coins", player.coins),
-                            new SqlParameter("@online", onlineTimestamp));
+                        new SqlParameter("@name", player.name),
+                        new SqlParameter("@account", player.account),
+                        new SqlParameter("@class", player.className),
+                        new SqlParameter("@x", player.transform.position.x),
+                        new SqlParameter("@y", player.transform.position.y),
+                        new SqlParameter("@z", player.transform.position.z),
+                        new SqlParameter("@level", player.level),
+                        new SqlParameter("@health", player.health),
+                        new SqlParameter("@mana", player.mana),
+                        new SqlParameter("@strength", player.strength),
+                        new SqlParameter("@intelligence", player.intelligence),
+                        new SqlParameter("@experience", player.experience),
+                        new SqlParameter("@skillExperience", player.skillExperience),
+                        new SqlParameter("@gold", player.gold),
+                        new SqlParameter("@coins", player.coins),
+                        new SqlParameter("@online", onlineTimestamp));
 
             // inventory: remove old entries first, then add all new ones
             // (we could use UPDATE where slot=... but deleting everything makes
@@ -685,20 +764,20 @@ public partial class Database
     }
 
     // save multiple characters at once (useful for ultra fast transactions)
-    public static void CharacterSaveMany(List<Player> players, bool online = true) {
+    public static void CharacterSaveMany(List<Player> players, bool online = true)
+    {
 
-        foreach (var player in players) 
+        foreach (var player in players)
             CharacterSave(player, online, false);
     }
 
     // guilds //////////////////////////////////////////////////////////////////
-    public static void SaveGuild(string guild, string notice, List<GuildMember> members) {
+    public static void SaveGuild(string guild, string notice, List<GuildMember> members)
+    {
 
         Transaction(command =>
         {
 
-
-            // guild info
             var query = @"
             INSERT INTO GUILD_INFO
             SET
@@ -716,6 +795,8 @@ public partial class Database
             ExecuteNonQuery(command, "DELETE FROM guild_members WHERE guild=@guild", new SqlParameter("@guild", guild));
             foreach (var member in members)
             {
+
+                Debug.Log("Saving guild " + guild + " member " + member.name);
                 ExecuteNonQuery(command, "INSERT INTO guild_members VALUES(@guild, @character, @rank)",
                                 new SqlParameter("@guild", guild),
                                 new SqlParameter("@character", member.name),
@@ -725,21 +806,19 @@ public partial class Database
         });
     }
 
-    public static bool GuildExists(string guild) {
-        return ((long)ExecuteScalar("SELECT Count(*) FROM guild_info WHERE name=@name", new SqlParameter("@name", guild))) == 1;
+    public static bool GuildExists(string guild)
+    {
+        return ((long)ExecuteScalarMysql("SELECT Count(*) FROM guild_info WHERE name=@name", new SqlParameter("@name", guild))) == 1;
     }
 
-    public static void RemoveGuild(string guild) {
-        Transaction(command =>
-        {
-            ExecuteNonQuery(command, "DELETE FROM guild_info WHERE name=@name", new SqlParameter("@name", guild));
-            ExecuteNonQuery(command, "DELETE FROM guild_members WHERE guild=@guild", new SqlParameter("@guild", guild));
-
-        });
+    public static void RemoveGuild(string guild)
+    {
+        ExecuteNonQueryMySql("DELETE FROM guild_info WHERE name=@name", new SqlParameter("@name", guild));
     }
 
     // item mall ///////////////////////////////////////////////////////////////
-    public static List<long> GrabCharacterOrders(string characterName) {
+    public static List<long> GrabCharacterOrders(string characterName)
+    {
         // grab new orders from the database and delete them immediately
         //
         // note: this requires an orderid if we want someone else to write to
@@ -749,10 +828,11 @@ public partial class Database
         // note: we could just delete processed orders, but keeping them in the
         // database is easier for debugging / support.
         var result = new List<long>();
-        var table = ExecuteReader("SELECT orderid, coins FROM character_orders WHERE `character`=@character AND processed=0", new SqlParameter("@character", characterName));
-        foreach (var row in table) {
+        var table = ExecuteReaderMysql("SELECT orderid, coins FROM character_orders WHERE `character`=@character AND processed=0", new SqlParameter("@character", characterName));
+        foreach (var row in table)
+        {
             result.Add((long)row[1]);
-            ExecuteNonQuery("UPDATE character_orders SET processed=1 WHERE orderid=@orderid", new SqlParameter("@orderid", (long)row[0]));
+            ExecuteNonQueryMySql("UPDATE character_orders SET processed=1 WHERE orderid=@orderid", new SqlParameter("@orderid", (long)row[0]));
         }
         return result;
     }
