@@ -38,5 +38,5 @@ That is out of my control,  it is entirely up to you to update the addons.
 
 If you don’t want to use environment variables, change where these fields are coming from in the method `ConnectionString` near the top. I use environment variables because I deploy my server in docker containers.
 
-This is provided as is,  no guaranty,  I am not responsible if it offers your first born child in sacrifice to the devil.  
+This is provided as is,  no warranty,  I am not responsible if it offers your first born child in sacrifice to the devil.  
 I am simply offering it for free for anyone who might want it.
