@@ -760,21 +760,24 @@ public partial class Database
                 // (we could use UPDATE where slot=... but deleting everything makes
                 //  sure that there are never any ghosts)
                 ExecuteNonQueryMySql(command, "DELETE FROM character_equipment WHERE `character`=@character", new SqlParameter("@character", player.name));
-            for (int i = 0; i < player.equipment.Count; ++i)
-            {
-                var item = player.equipment[i];
-                ExecuteNonQueryMySql(command, "INSERT INTO character_equipment VALUES (@character, @slot, @name, @valid, @amount)",
-                                new SqlParameter("@character", player.name),
-                                new SqlParameter("@slot", i),
-                                new SqlParameter("@name", item.valid ? item.name : ""),
-                                new SqlParameter("@valid", item.valid),
-                                new SqlParameter("@amount", item.valid ? item.amount : 0));
-            }
+                for (int i = 0; i < player.equipment.Count; ++i)
+                {
+                    var item = player.equipment[i];
+                    ExecuteNonQueryMySql(command, "INSERT INTO character_equipment VALUES (@character, @slot, @name, @valid, @amount)",
+                                    new SqlParameter("@character", player.name),
+                                    new SqlParameter("@slot", i),
+                                    new SqlParameter("@name", item.valid ? item.name : ""),
+                                    new SqlParameter("@valid", item.valid),
+                                    new SqlParameter("@amount", item.valid ? item.amount : 0));
+                }
 
                 // skills: remove old entries first, then add all new ones
                 ExecuteNonQueryMySql(command, "DELETE FROM character_skills WHERE `character`=@character", new SqlParameter("@character", player.name));
-            foreach (var skill in player.skills)
-                if (skill.learned)
+                foreach (var skill in player.skills)
+                    // only save relevant skills to save a lot of queries and storage
+                    // (considering thousands of players)
+                    // => interesting only if learned or if buff/status (murderer etc.)
+                    if (skill.learned || skill.BuffTimeRemaining() > 0)
                         // castTimeEnd and cooldownEnd are based on Time.time, which
                         // will be different when restarting the server, so let's
                         // convert them to the remaining time for easier save & load
