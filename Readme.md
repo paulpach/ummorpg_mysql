@@ -18,8 +18,16 @@ To install follow these instructions:
 
 1) Backup,  you have been warned
 2) Install mysql
-3) Create a database and ensure you can connect to it from your server
-4) export these environment variables before running unity or your server:
+3) edit my.cnf or my.ini and add this:
+```
+[mysqld]
+init_connect='SET collation_connection = utf8mb4_unicode_ci' 
+init_connect='SET NAMES utf8mb4' 
+character-set-server=utf8mb4 
+collation-server=utf8mb4_unicode_ci 
+```
+4) Create a database and ensure you can connect to it from your server
+5) export these environment variables before running unity or your server:
 ~~~~
 MYSQL_HOST=<your database server>
 MYSQL_DATABASE=<your database name>
@@ -27,11 +35,11 @@ MYSQL_USER=<user name to connect to your database>
 MYSQL_PASSWORD=<password to connect to your database>
 MYSQL_PORT=<port to your database,  typically 3306>`
 ~~~~
-5) Run Unity and open your project
-6) Delete Database.cs that comes with uMMORPG
-7) add these files to your project
-8) Hit play and enjoy
-9) When you build a server,  make sure to export those environment variables too
+6) Run Unity and open your project
+7) Delete Database.cs that comes with uMMORPG
+8) add these files to your project
+9) Hit play and enjoy
+10) When you build a server,  make sure to export those environment variables too
 
 
 Note, many addons add their own tables and columns.  
