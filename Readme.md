@@ -10,6 +10,8 @@ There are a few enhancement I made in this addon not present in the sqlite versi
 * Native mysql types such as boolean and Datetime, no awkard conversions
 * Foreign keys,  make it really easy to do maintenance on your database and ensure data integrity
 * utf8, character names in any language
+* Normalized the tables.
+* Optimize database access.  Don't do so many round trips to the database for inventory, skills and equipment.
 
 
 To install follow these instructions:
