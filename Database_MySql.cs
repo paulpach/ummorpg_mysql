@@ -110,7 +110,7 @@ public partial class Database
             name VARCHAR(16) NOT NULL,
             notice TEXT NOT NULL,
             PRIMARY KEY(name)
-        ) CHARACTER SET=utf8");
+        ) CHARACTER SET=utf8mb4");
 
 
         ExecuteNonQueryMySql(@"
@@ -119,7 +119,7 @@ public partial class Database
             password CHAR(40) NOT NULL,
             banned BOOLEAN NOT NULL DEFAULT 0,
             PRIMARY KEY(name)
-        ) CHARACTER SET=utf8");
+        ) CHARACTER SET=utf8mb4");
 
         ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS characters(
@@ -155,7 +155,7 @@ public partial class Database
             FOREIGN KEY(guild)
                 REFERENCES guild_info(name)
                 ON DELETE SET NULL ON UPDATE CASCADE
-        ) CHARACTER SET=utf8");
+        ) CHARACTER SET=utf8mb4");
 
 
         ExecuteNonQueryMySql(@"
@@ -173,7 +173,7 @@ public partial class Database
         	FOREIGN KEY(`character`)
                 REFERENCES characters(name)
                 ON DELETE CASCADE ON UPDATE CASCADE
-        ) CHARACTER SET=utf8");
+        ) CHARACTER SET=utf8mb4");
 
         ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS character_equipment(
@@ -187,23 +187,34 @@ public partial class Database
         	FOREIGN KEY(`character`)
                 REFERENCES characters(name)
                 ON DELETE CASCADE ON UPDATE CASCADE
-         ) CHARACTER SET=utf8");
+         ) CHARACTER SET=utf8mb4");
 
         ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS character_skills(
             `character` VARCHAR(16) NOT NULL,
             name VARCHAR(50) NOT NULL,
             learned BOOLEAN NOT NULL ,
-            level INT NOT NULL,
         	castTimeEnd FLOAT NOT NULL,
             cooldownEnd FLOAT NOT NULL,
-        	buffTimeEnd FLOAT NOT NULL,
 
             PRIMARY KEY (`character`, name),
             FOREIGN KEY(`character`)
                 REFERENCES characters(name)
                 ON DELETE CASCADE ON UPDATE CASCADE
-        ) CHARACTER SET=utf8");
+        ) CHARACTER SET=utf8mb4");
+
+
+        ExecuteNonQuery(@"
+        CREATE TABLE IF NOT EXISTS character_buffs (
+            `character` VARCHAR(16) NOT NULL,
+            name VARCHAR(50) NOT NULL,
+            buffTimeEnd FLOAT NOT NULL,
+
+            PRIMARY KEY (`character`, name),
+            FOREIGN KEY(`character`)
+                REFERENCES characters(name)
+                ON DELETE CASCADE ON UPDATE CASCADE 
+        ) CHARACTER SET=utf8mb4");
 
 
         ExecuteNonQueryMySql(@"
@@ -217,7 +228,7 @@ public partial class Database
         	FOREIGN KEY(`character`)
                 REFERENCES characters(name)
                 ON DELETE CASCADE ON UPDATE CASCADE
-        ) CHARACTER SET=utf8");
+        ) CHARACTER SET=utf8mb4");
 
 
         ExecuteNonQueryMySql(@"
@@ -232,7 +243,7 @@ public partial class Database
         	FOREIGN KEY(`character`)
                 REFERENCES characters(name)
                 ON DELETE CASCADE ON UPDATE CASCADE
-        ) CHARACTER SET=utf8");
+        ) CHARACTER SET=utf8mb4");
 
 
 
@@ -459,6 +470,7 @@ public partial class Database
                 LoadInventory(player);
                 LoadEquipment(player);
                 LoadSkills(player);
+                LoadBuffs(player);
                 LoadQuests(player);
                 LoadGuild(player);
 
@@ -537,7 +549,7 @@ public partial class Database
         var skills = new Dictionary<string, Skill>();
 
         using (var reader = GetReader(
-            "SELECT name, learned, level, castTimeEnd, cooldownEnd, buffTimeEnd FROM character_skills WHERE `character`=@character ",
+            "SELECT name, learned, castTimeEnd, cooldownEnd FROM character_skills WHERE `character`=@character ",
             new SqlParameter("@character", player.name)))
         {
 
@@ -556,14 +568,12 @@ public partial class Database
                     skill.learned = (bool)reader["learned"]; // sqlite has no bool
                                                   // make sure that 1 <= level <= maxlevel (in case we removed a skill
                                                   // level etc)
-                    skill.level = Mathf.Clamp((int)reader["level"], 1, skill.maxLevel);
                     // castTimeEnd and cooldownEnd are based on Time.time, which
                     // will be different when restarting a server, hence why we
                     // saved them as just the remaining times. so let's convert them
                     // back again.
                     skill.castTimeEnd = (float)reader["castTimeEnd"] + Time.time;
                     skill.cooldownEnd = (float)reader["cooldownEnd"] + Time.time;
-                    skill.buffTimeEnd = (float)reader["buffTimeEnd"] + Time.time;
                     skills[skillName] = skill;
 
                 }
@@ -584,6 +594,29 @@ public partial class Database
             player.skills.Add(skill);
         }
 
+    }
+
+    private static void LoadBuffs(Player player)
+    {
+
+        using (var reader = GetReader(
+            "SELECT name, buffTimeEnd FROM character_buffs WHERE `character` = @character ",
+            new SqlParameter("@character", player.name)))
+        {
+            while (reader.Read())
+            {
+                Buff buff = new Buff();
+                buff.name = (string)reader["name"];
+                // buffTimeEnd is based on Time.time, which will be
+                // different when restarting a server, hence why we saved
+                // them as just the remaining times. so let's convert them
+                // back again.
+                buff.buffTimeEnd = (float)reader["buffTimeEnd"] + NetworkTime.time;
+                if (buff.TemplateExists()) player.buffs.Add(buff);
+
+            }
+
+        }
     }
 
     private static void LoadEquipment(Player player)
@@ -738,71 +771,96 @@ public partial class Database
                         new SqlParameter("@guild", player.guildName == "" ? null : player.guildName)
                            );
 
-                // inventory: remove old entries first, then add all new ones
-                // (we could use UPDATE where slot=... but deleting everything makes
-                //  sure that there are never any ghosts)
-                ExecuteNonQueryMySql(command, "DELETE FROM character_inventory WHERE `character`=@character", new SqlParameter("@character", player.name));
+            // inventory: remove old entries first, then add all new ones
+            // (we could use UPDATE where slot=... but deleting everything makes
+            //  sure that there are never any ghosts)
+            ExecuteNonQueryMySql(command, "DELETE FROM character_inventory WHERE `character`=@character", new SqlParameter("@character", player.name));
             for (int i = 0; i < player.inventory.Count; ++i)
             {
                 var item = player.inventory[i];
                 ExecuteNonQueryMySql(command, "INSERT INTO character_inventory VALUES (@character, @slot, @name, @valid, @amount, @petHealth, @petLevel, @petExperience)",
+                            new SqlParameter("@character", player.name),
+                            new SqlParameter("@slot", i),
+                            new SqlParameter("@name", item.valid ? item.name : ""),
+                            new SqlParameter("@valid", item.valid),
+                            new SqlParameter("@amount", item.valid ? item.amount : 0),
+                            new SqlParameter("@petHealth", item.valid ? item.petHealth : 0),
+                            new SqlParameter("@petLevel", item.valid ? item.petLevel : 0),
+                            new SqlParameter("@petExperience", item.valid ? item.petExperience : 0));
+            }
+
+            // equipment: remove old entries first, then add all new ones
+            // (we could use UPDATE where slot=... but deleting everything makes
+            //  sure that there are never any ghosts)
+            ExecuteNonQueryMySql(command, "DELETE FROM character_equipment WHERE `character`=@character", new SqlParameter("@character", player.name));
+            for (int i = 0; i < player.equipment.Count; ++i)
+            {
+                var item = player.equipment[i];
+                ExecuteNonQueryMySql(command, "INSERT INTO character_equipment VALUES (@character, @slot, @name, @valid, @amount)",
                                 new SqlParameter("@character", player.name),
                                 new SqlParameter("@slot", i),
                                 new SqlParameter("@name", item.valid ? item.name : ""),
                                 new SqlParameter("@valid", item.valid),
-                                new SqlParameter("@amount", item.valid ? item.amount : 0),
-                                new SqlParameter("@petHealth", item.valid ? item.petHealth : 0),
-                                new SqlParameter("@petLevel", item.valid ? item.petLevel : 0),
-                                new SqlParameter("@petExperience", item.valid ? item.petExperience : 0));
+                                new SqlParameter("@amount", item.valid ? item.amount : 0));
             }
 
-                // equipment: remove old entries first, then add all new ones
-                // (we could use UPDATE where slot=... but deleting everything makes
-                //  sure that there are never any ghosts)
-                ExecuteNonQueryMySql(command, "DELETE FROM character_equipment WHERE `character`=@character", new SqlParameter("@character", player.name));
-                for (int i = 0; i < player.equipment.Count; ++i)
+            // skills: remove old entries first, then add all new ones
+            ExecuteNonQueryMySql(command, "DELETE FROM character_skills WHERE `character`=@character", new SqlParameter("@character", player.name));
+            foreach (var skill in player.skills)
+            {
+                // only save relevant skills to save a lot of queries and storage
+                // (considering thousands of players)
+                // => interesting only if learned or if buff/status (murderer etc.)
+                if (skill.learned || skill.BuffTimeRemaining() > 0)
                 {
-                    var item = player.equipment[i];
-                    ExecuteNonQueryMySql(command, "INSERT INTO character_equipment VALUES (@character, @slot, @name, @valid, @amount)",
-                                    new SqlParameter("@character", player.name),
-                                    new SqlParameter("@slot", i),
-                                    new SqlParameter("@name", item.valid ? item.name : ""),
-                                    new SqlParameter("@valid", item.valid),
-                                    new SqlParameter("@amount", item.valid ? item.amount : 0));
+                    // castTimeEnd and cooldownEnd are based on Time.time, which
+                    // will be different when restarting the server, so let's
+                    // convert them to the remaining time for easier save & load
+                    // note: this does NOT work when trying to save character data shortly
+                    //       before closing the editor or game because Time.time is 0 then.
+                    ExecuteNonQueryMySql(command, @"
+                    INSERT INTO character_skills 
+                    SET
+                        `character` = @character,
+                        name = @name,
+                        learned = @learned,
+                        castTimeEnd = @castTimeEnd,
+                        cooldownEnd = @cooldownEnd",
+                                        new SqlParameter("@character", player.name),
+                                        new SqlParameter("@name", skill.name),
+                                        new SqlParameter("@learned", skill.learned),
+                                        new SqlParameter("@castTimeEnd", skill.CastTimeRemaining()),
+                                        new SqlParameter("@cooldownEnd", skill.CooldownRemaining()));
                 }
+            }
 
-                // skills: remove old entries first, then add all new ones
-                ExecuteNonQueryMySql(command, "DELETE FROM character_skills WHERE `character`=@character", new SqlParameter("@character", player.name));
-                foreach (var skill in player.skills)
-                    // only save relevant skills to save a lot of queries and storage
-                    // (considering thousands of players)
-                    // => interesting only if learned or if buff/status (murderer etc.)
-                    if (skill.learned || skill.BuffTimeRemaining() > 0)
-                        // castTimeEnd and cooldownEnd are based on Time.time, which
-                        // will be different when restarting the server, so let's
-                        // convert them to the remaining time for easier save & load
-                        // note: this does NOT work when trying to save character data shortly
-                        //       before closing the editor or game because Time.time is 0 then.
-                        ExecuteNonQueryMySql(command, "INSERT INTO character_skills VALUES (@character, @name, @learned, @level, @castTimeEnd, @cooldownEnd, @buffTimeEnd)",
-                                            new SqlParameter("@character", player.name),
-                                            new SqlParameter("@name", skill.name),
-                                            new SqlParameter("@learned", skill.learned),
-                                            new SqlParameter("@level", skill.level),
-                                            new SqlParameter("@castTimeEnd", skill.CastTimeRemaining()),
-                                            new SqlParameter("@cooldownEnd", skill.CooldownRemaining()),
-                                            new SqlParameter("@buffTimeEnd", skill.BuffTimeRemaining()));
-
-                // quests: remove old entries first, then add all new ones
-                ExecuteNonQueryMySql(command, "DELETE FROM character_quests WHERE `character`=@character", new SqlParameter("@character", player.name));
-            foreach (var quest in player.quests)
+            // quests: remove old entries first, then add all new ones
+            ExecuteNonQueryMySql(command, "DELETE FROM character_quests WHERE `character`=@character", new SqlParameter("@character", player.name));
+            foreach (var quest in player.quests) 
+            {
                 ExecuteNonQueryMySql(command, "INSERT INTO character_quests VALUES (@character, @name, @killed, @completed)",
                                 new SqlParameter("@character", player.name),
                                 new SqlParameter("@name", quest.name),
                                 new SqlParameter("@killed", quest.killed),
                                 new SqlParameter("@completed", quest.completed));
+            }
+
+            ExecuteNonQueryMySql(command, "DELETE FROM character_buffs WHERE `character`=@character", new SqlParameter("@character", player.name));
+            foreach (var buff in player.buffs)
+            {
+                // buffTimeEnd is based on Time.time, which will be different when
+                // restarting the server, so let's convert them to the remaining
+                // time for easier save & load
+                // note: this does NOT work when trying to save character data shortly
+                //       before closing the editor or game because Time.time is 0 then.
+                ExecuteNonQueryMySql(command, "INSERT INTO character_buffs VALUES (@character, @name, @buffTimeEnd)",
+                                new SqlParameter("@character", player.name),
+                                new SqlParameter("@name", buff.name),
+                                new SqlParameter("@buffTimeEnd", (float)buff.BuffTimeRemaining()));
+            }
 
                 // addon system hooks
-                Utils.InvokeMany(typeof(Database), null, "CharacterSave_", player);
+            Utils.InvokeMany(typeof(Database), null, "CharacterSave_", player);
 
 
         });
