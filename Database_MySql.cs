@@ -884,7 +884,7 @@ public partial class Database
         {
 
             var query = @"
-            INSERT INTO GUILD_INFO
+            INSERT INTO guild_info
             SET
                 name = @guild,
                 notice = @notice
