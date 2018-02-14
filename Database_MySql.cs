@@ -163,7 +163,6 @@ public partial class Database
             `character` VARCHAR(16) NOT NULL,
             slot INT NOT NULL,
         	name VARCHAR(50) NOT NULL,
-            valid BOOLEAN NOT NULL,
             amount INT NOT NULL,
         	petHealth INT NOT NULL,
             petLevel INT NOT NULL,
@@ -180,7 +179,6 @@ public partial class Database
             `character` VARCHAR(16) NOT NULL,
             slot INT NOT NULL,
         	name VARCHAR(50) NOT NULL,
-            valid BOOLEAN NOT NULL,
             amount INT NOT NULL,
 
             primary key(`character`, slot),
@@ -193,7 +191,7 @@ public partial class Database
         CREATE TABLE IF NOT EXISTS character_skills(
             `character` VARCHAR(16) NOT NULL,
             name VARCHAR(50) NOT NULL,
-            learned BOOLEAN NOT NULL ,
+            level INT NOT NULL,
         	castTimeEnd FLOAT NOT NULL,
             cooldownEnd FLOAT NOT NULL,
 
@@ -208,6 +206,7 @@ public partial class Database
         CREATE TABLE IF NOT EXISTS character_buffs (
             `character` VARCHAR(16) NOT NULL,
             name VARCHAR(50) NOT NULL,
+            level INT NOT NULL,
             buffTimeEnd FLOAT NOT NULL,
 
             PRIMARY KEY (`character`, name),
@@ -273,7 +272,6 @@ public partial class Database
 
     private static void ExecuteNonQueryMySql(MySqlCommand command, string sql, params SqlParameter[] args)
     {
-
         command.CommandText = sql;
         command.Parameters.Clear();
 
@@ -408,80 +406,159 @@ public partial class Database
     // we really need the prefab name too, so that client character selection
     // can read all kinds of properties like icons, stats, 3D models and not
     // just the character name
-    public static Dictionary<string, string> CharactersForAccount(string account)
+    public static List<string> CharactersForAccount(string account)
     {
-        var result = new Dictionary<string, string>();
+        var result = new List<String>();
 
-        var table = ExecuteReaderMySql("SELECT name, class FROM characters WHERE account=@account AND deleted=0", new SqlParameter("@account", account));
+        var table = ExecuteReaderMySql("SELECT name FROM characters WHERE account=@account AND deleted=0", new SqlParameter("@account", account));
         foreach (var row in table)
-            result[(string)row[0]] = (string)row[1];
-
+            result.Add((string)row[0]);
         return result;
     }
 
-    public static GameObject CharacterLoad(string characterName, List<Player> prefabs)
+    private static void LoadInventory(Player player)
     {
-        var row = ExecuteDataRowMySql("SELECT * FROM characters WHERE name=@name AND deleted=0", new SqlParameter("@name", characterName));
-        if (row != null)
+        // fill all slots first
+        for (int i = 0; i < player.inventorySize; ++i)
+            player.inventory.Add(new Item());
+
+        // override with the inventory stored in database
+        using (var reader = GetReader(@"SELECT * FROM character_inventory WHERE `character`=@character;",
+                                           new SqlParameter("@character", player.name)))
         {
-            // instantiate based on the class name
-            string className = (string)row["class"];
-            var prefab = prefabs.Find(p => p.name == className);
-            if (prefab != null)
+
+            while (reader.Read())
             {
-                var go = GameObject.Instantiate(prefab.gameObject);
-                var player = go.GetComponent<Player>();
+                var item = new Item();
+                item.name = (string)reader["name"];
+                item.valid = true; // only valid items were saved
+                item.amount = (int)reader["amount"];
+                item.petHealth = (int)reader["petHealth"];
+                item.petLevel = (int)reader["petLevel"];
+                item.petExperience = (int)reader["petExperience"];
 
-                player.name = (string)row["name"];
-                player.account = (string)row["account"];
-                player.className = (string)row["class"];
-                float x = (float)row["x"];
-                float y = (float)row["y"];
-                float z = (float)row["z"];
-                Vector3 position = new Vector3(x, y, z);
-                player.level = (int)row["level"];
-                player.health = (int)row["health"];
-                player.mana = (int)row["mana"];
-                player.strength = (int)row["strength"];
-                player.intelligence = (int)row["intelligence"];
-                player.experience = (long)row["experience"];
-                player.skillExperience = (long)row["skillExperience"];
-                player.gold = (long)row["gold"];
-                player.coins = (long)row["coins"];
+                var slot = (int)reader["slot"];
 
-                if (row.IsNull("guild"))
-                    player.guildName = "";
-                else
-                    player.guildName = (string)row["guild"];
-
-                // try to warp to loaded position.
-                // => agent.warp is recommended over transform.position and
-                //    avoids all kinds of weird bugs
-                // => warping might fail if we changed the world since last save
-                //    so we reset to start position if not on navmesh
-                player.agent.Warp(position);
-                if (!player.agent.isOnNavMesh)
-                {
-                    Transform start = NetworkManager.singleton.GetNearestStartPosition(position);
-                    player.agent.Warp(start.position);
-                    Debug.Log(player.name + " invalid position was reset");
-                }
-
-                LoadInventory(player);
-                LoadEquipment(player);
-                LoadSkills(player);
-                LoadBuffs(player);
-                LoadQuests(player);
-                LoadGuild(player);
-
-                // addon system hooks
-                Utils.InvokeMany(typeof(Database), null, "CharacterLoad_", player);
-
-                return go;
+                // add item if template still exists, otherwise empty
+                if (slot < player.inventorySize && item.TemplateExists())
+                    player.inventory[slot] = item;
             }
-            else Debug.LogError("no prefab found for class: " + className);
         }
-        return null;
+    }
+
+    private static void LoadEquipment(Player player)
+    {
+        // fill all slots first
+        for (int i = 0; i < player.equipmentInfo.Length; ++i)
+            player.equipment.Add(new Item());
+
+        using (var reader = GetReader(@"SELECT * FROM character_equipment WHERE `character`=@character;",
+                                           new SqlParameter("@character", player.name)))
+        {
+
+
+            while (reader.Read())
+            {
+                var slot = (int)reader["slot"];
+                var item = new Item();
+                item.name = (string)reader["name"];
+                item.valid = true; // only valid items were saved
+                item.amount = (int)reader["amount"];
+
+                // add item if template still exists, otherwise empty
+                if (slot < player.equipmentInfo.Length && item.TemplateExists())
+                    player.equipment[slot] = item;
+            }
+        }
+    }
+
+    private static void LoadSkills(Player player)
+    {
+        // load skills based on skill templates (the others don't matter)
+        // -> this way any template changes in a prefab will be applied
+        //    to all existing players every time (unlike item templates
+        //    which are only for newly created characters)
+
+        // fill all slots first
+        foreach (var template in player.skillTemplates)
+            player.skills.Add(new Skill(template));
+
+        using (var reader = GetReader(
+            "SELECT name, level, castTimeEnd, cooldownEnd FROM character_skills WHERE `character`=@character ",
+            new SqlParameter("@character", player.name)))
+        {
+
+            while (reader.Read())
+            {
+
+                var skillName = (string)reader["name"];
+
+                int index = player.skills.FindIndex(skill => skill.name == skillName);
+                if (index != -1)
+                {
+                    Skill skill = player.skills[index];
+                    skill.learned = true; // only learned skills were saved
+                    // make sure that 1 <= level <= maxlevel (in case we removed a skill
+                    // level etc)
+                    skill.level = Mathf.Clamp((int)reader["level"], 1, skill.maxLevel);
+                    // make sure that 1 <= level <= maxlevel (in case we removed a skill
+                    // level etc)
+                    // castTimeEnd and cooldownEnd are based on Time.time, which
+                    // will be different when restarting a server, hence why we
+                    // saved them as just the remaining times. so let's convert them
+                    // back again.
+                    skill.castTimeEnd = (float)reader["castTimeEnd"] + Time.time;
+                    skill.cooldownEnd = (float)reader["cooldownEnd"] + Time.time;
+
+                    player.skills[index] = skill;
+                }
+            }
+        }
+    }
+
+    private static void LoadBuffs(Player player)
+    {
+
+        using (var reader = GetReader(
+            "SELECT name, level, buffTimeEnd FROM character_buffs WHERE `character` = @character ",
+            new SqlParameter("@character", player.name)))
+        {
+            while (reader.Read())
+            {
+                Buff buff = new Buff();
+                buff.name = (string)reader["name"];
+                // make sure that 1 <= level <= maxlevel (in case we removed a skill
+                // level etc)
+                buff.level = Mathf.Clamp((int)reader["level"], 1, buff.maxLevel);
+                // buffTimeEnd is based on Time.time, which will be
+                // different when restarting a server, hence why we saved
+                // them as just the remaining times. so let's convert them
+                // back again.
+                buff.buffTimeEnd = (float)reader["buffTimeEnd"] + NetworkTime.time;
+                if (buff.TemplateExists()) player.buffs.Add(buff);
+
+            }
+
+        }
+    }
+
+    private static void LoadQuests(Player player)
+    {
+        // load quests
+
+        using (var reader = GetReader("SELECT name, killed, completed FROM character_quests WHERE `character`=@character",
+                                           new SqlParameter("@character", player.name)))
+        {
+
+            while (reader.Read())
+            {
+                var quest = new Quest();
+                quest.name = (string)reader["name"];
+                quest.killed = (int)reader["killed"];
+                quest.completed = (bool)reader["completed"];
+                player.quests.Add(quest.TemplateExists() ? quest : new Quest());
+            }
+        }
     }
 
     private static void LoadGuild(Player player)
@@ -519,174 +596,174 @@ public partial class Database
         }
     }
 
-    private static void LoadQuests(Player player)
+    public static GameObject CharacterLoad(string characterName, List<Player> prefabs)
     {
-        // load quests
-
-        using (var reader = GetReader("SELECT name, killed, completed FROM character_quests WHERE `character`=@character",
-                                           new SqlParameter("@character", player.name)))
+        var row = ExecuteDataRowMySql("SELECT * FROM characters WHERE name=@name AND deleted=0", new SqlParameter("@name", characterName));
+        if (row != null)
         {
-
-            while (reader.Read())
+            // instantiate based on the class name
+            string className = (string)row["class"];
+            var prefab = prefabs.Find(p => p.name == className);
+            if (prefab != null)
             {
-                var quest = new Quest();
-                quest.name = (string)reader["name"];
-                quest.killed = (int)reader["killed"];
-                quest.completed = (bool)reader["completed"];
-                player.quests.Add(quest.TemplateExists() ? quest : new Quest());
-            }
-        }
-    }
+                var go = GameObject.Instantiate(prefab.gameObject);
+                var player = go.GetComponent<Player>();
 
-    private static void LoadSkills(Player player)
-    {
+                player.name = (string)row["name"];
+                player.account = (string)row["account"];
+                player.className = (string)row["class"];
+                float x = (float)row["x"];
+                float y = (float)row["y"];
+                float z = (float)row["z"];
+                Vector3 position = new Vector3(x, y, z);
+                player.level = (int)row["level"];
+                int health = (int)row["health"];
+                int mana = (int)row["mana"];
+                player.strength = (int)row["strength"];
+                player.intelligence = (int)row["intelligence"];
+                player.experience = (long)row["experience"];
+                player.skillExperience = (long)row["skillExperience"];
+                player.gold = (long)row["gold"];
+                player.coins = (long)row["coins"];
 
-        var templates = player.skillTemplates.ToDictionary(
-            x => x.name, (x) => x
-        );
+                if (row.IsNull("guild"))
+                    player.guildName = "";
+                else
+                    player.guildName = (string)row["guild"];
 
-
-        var skills = new Dictionary<string, Skill>();
-
-        using (var reader = GetReader(
-            "SELECT name, learned, castTimeEnd, cooldownEnd FROM character_skills WHERE `character`=@character ",
-            new SqlParameter("@character", player.name)))
-        {
-
-            while (reader.Read())
-            {
-
-                var skillName = (string)reader["name"];
-
-                SkillTemplate template;
-
-                if (templates.TryGetValue(skillName, out template))
+                // try to warp to loaded position.
+                // => agent.warp is recommended over transform.position and
+                //    avoids all kinds of weird bugs
+                // => warping might fail if we changed the world since last save
+                //    so we reset to start position if not on navmesh
+                player.agent.Warp(position);
+                if (!player.agent.isOnNavMesh)
                 {
-                    templates.Remove(skillName);
-                    var skill = new Skill(template);
-
-                    skill.learned = (bool)reader["learned"]; // sqlite has no bool
-                                                  // make sure that 1 <= level <= maxlevel (in case we removed a skill
-                                                  // level etc)
-                    // castTimeEnd and cooldownEnd are based on Time.time, which
-                    // will be different when restarting a server, hence why we
-                    // saved them as just the remaining times. so let's convert them
-                    // back again.
-                    skill.castTimeEnd = (float)reader["castTimeEnd"] + Time.time;
-                    skill.cooldownEnd = (float)reader["cooldownEnd"] + Time.time;
-                    skills[skillName] = skill;
-
+                    Transform start = NetworkManager.singleton.GetNearestStartPosition(position);
+                    player.agent.Warp(start.position);
+                    Debug.Log(player.name + " invalid position was reset");
                 }
+
+                LoadInventory(player);
+                LoadEquipment(player);
+                LoadSkills(player);
+                LoadBuffs(player);
+                player.health = health; // after equip & buffs when healthMax was correctly loaded (otherwise health := max wouldn't work)
+                player.mana = mana; // after equip & buffs when healthMax was correctly loaded  (otherwise health := max wouldn't work)
+                LoadQuests(player);
+                LoadGuild(player);
+
+                // addon system hooks
+                Utils.InvokeMany(typeof(Database), null, "CharacterLoad_", player);
+
+                return go;
             }
+            else Debug.LogError("no prefab found for class: " + className);
         }
-
-        // load skills based on skill templates (the others don't matter)
-        foreach (var template in player.skillTemplates)
-        {
-            // create skill based on template
-            Skill skill;
-
-            if (!skills.TryGetValue(template.name, out skill))
-            {
-                skill = new Skill(template);
-            }
-
-            player.skills.Add(skill);
-        }
-
+        return null;
     }
 
-    private static void LoadBuffs(Player player)
+    private static void SaveInventory(Player player, MySqlCommand command)
     {
-
-        using (var reader = GetReader(
-            "SELECT name, buffTimeEnd FROM character_buffs WHERE `character` = @character ",
-            new SqlParameter("@character", player.name)))
+        // inventory: remove old entries first, then add all new ones
+        // (we could use UPDATE where slot=... but deleting everything makes
+        //  sure that there are never any ghosts)
+        ExecuteNonQueryMySql(command, "DELETE FROM character_inventory WHERE `character`=@character", new SqlParameter("@character", player.name));
+        for (int i = 0; i < player.inventory.Count; ++i)
         {
-            while (reader.Read())
-            {
-                Buff buff = new Buff();
-                buff.name = (string)reader["name"];
-                // buffTimeEnd is based on Time.time, which will be
-                // different when restarting a server, hence why we saved
-                // them as just the remaining times. so let's convert them
-                // back again.
-                buff.buffTimeEnd = (float)reader["buffTimeEnd"] + NetworkTime.time;
-                if (buff.TemplateExists()) player.buffs.Add(buff);
-
-            }
-
-        }
-    }
-
-    private static void LoadEquipment(Player player)
-    {
-        var items = new Item[player.equipmentInfo.Length];
-
-        // add empty slot or default item if any
-        for (int i = 0; i < items.Length; ++i)
-        {
-            EquipmentInfo info = player.equipmentInfo[i];
-            items[i] = info.defaultItem != null ? new Item(info.defaultItem) : new Item();
-        }
-
-        using (var reader = GetReader(@"SELECT * FROM character_equipment WHERE `character`=@character;",
-                                           new SqlParameter("@character", player.name)))
-        {
-
-
-            while (reader.Read())
-            {
-                var slot = (int)reader["slot"];
-                var item = new Item();
-                item.name = (string)reader["name"];
-                item.valid = (bool)reader["valid"];
-                item.amount = (int)reader["amount"];
-
-                items[slot] = item.valid && item.TemplateExists() ? item : new Item();
-            };
-        }
-
-        foreach (var item in items)
-        {
-            player.equipment.Add(item);
+            var item = player.inventory[i];
+            if (item.valid) // only relevant items to save queries/storage/time
+                ExecuteNonQueryMySql(command, "INSERT INTO character_inventory VALUES (@character, @slot, @name, @amount, @petHealth, @petLevel, @petExperience)",
+                        new SqlParameter("@character", player.name),
+                        new SqlParameter("@slot", i),
+                        new SqlParameter("@name",  item.name),
+                        new SqlParameter("@amount",  item.amount),
+                        new SqlParameter("@petHealth", item.petHealth),
+                        new SqlParameter("@petLevel",  item.petLevel),
+                        new SqlParameter("@petExperience", item.petExperience));
         }
     }
 
-    private static void LoadInventory(Player player)
+    private static void SaveEquipment(Player player, MySqlCommand command)
     {
-        var items = new Item[player.inventorySize];
-
-        // add empty slot or default item if any
-        for (int i = 0; i < items.Length; ++i)
+        // equipment: remove old entries first, then add all new ones
+        // (we could use UPDATE where slot=... but deleting everything makes
+        //  sure that there are never any ghosts)
+        ExecuteNonQueryMySql(command, "DELETE FROM character_equipment WHERE `character`=@character", new SqlParameter("@character", player.name));
+        for (int i = 0; i < player.equipment.Count; ++i)
         {
-            items[i] = (i < player.defaultItems.Length ? new Item(player.defaultItems[i]) : new Item());
+            var item = player.equipment[i];
+            if (item.valid) // only relevant equip to save queries/storage/time
+                ExecuteNonQueryMySql(command, "INSERT INTO character_equipment VALUES (@character, @slot, @name, @amount)",
+                            new SqlParameter("@character", player.name),
+                            new SqlParameter("@slot", i),
+                            new SqlParameter("@name", item.name),
+                            new SqlParameter("@amount", item.amount));
         }
+    }
 
-        // override with the inventory stored in database
-        using (var reader = GetReader(@"SELECT * FROM character_inventory WHERE `character`=@character;",
-                                           new SqlParameter("@character", player.name)))
+    private static void SaveSkills(Player player, MySqlCommand command)
+    {
+        // skills: remove old entries first, then add all new ones
+        ExecuteNonQueryMySql(command, "DELETE FROM character_skills WHERE `character`=@character", new SqlParameter("@character", player.name));
+        foreach (var skill in player.skills)
         {
-
-            while (reader.Read())
+            // only save relevant skills to save a lot of queries and storage
+            // (considering thousands of players)
+            // => interesting only if learned or if buff/status (murderer etc.)
+            if (skill.learned) // only relevant skills to save queries/storage/time
             {
-                var item = new Item();
-                item.name = (string)reader["name"];
-                item.valid = (bool)reader["valid"];
-                item.amount = (int)reader["amount"];
-                item.petHealth = (int)reader["petHealth"];
-                item.petLevel = (int)reader["petLevel"];
-                item.petExperience = (int)reader["petExperience"];
-
-                var slot = (int)reader["slot"];
-
-                items[slot] = item.valid && item.TemplateExists() ? item : new Item();
+                // castTimeEnd and cooldownEnd are based on Time.time, which
+                // will be different when restarting the server, so let's
+                // convert them to the remaining time for easier save & load
+                // note: this does NOT work when trying to save character data shortly
+                //       before closing the editor or game because Time.time is 0 then.
+                ExecuteNonQueryMySql(command, @"
+                    INSERT INTO character_skills 
+                    SET
+                        `character` = @character,
+                        name = @name,
+                        level = @level,
+                        castTimeEnd = @castTimeEnd,
+                        cooldownEnd = @cooldownEnd",
+                                    new SqlParameter("@character", player.name),
+                                    new SqlParameter("@name", skill.name),
+                                     new SqlParameter("@level", skill.level),
+                                    new SqlParameter("@castTimeEnd", skill.CastTimeRemaining()),
+                                    new SqlParameter("@cooldownEnd", skill.CooldownRemaining()));
             }
         }
+    }
 
-        foreach (var item in items)
+    private static void SaveBuffs(Player player, MySqlCommand command)
+    {
+        ExecuteNonQueryMySql(command, "DELETE FROM character_buffs WHERE `character`=@character", new SqlParameter("@character", player.name));
+        foreach (var buff in player.buffs)
         {
-            player.inventory.Add(item);
+            // buffTimeEnd is based on Time.time, which will be different when
+            // restarting the server, so let's convert them to the remaining
+            // time for easier save & load
+            // note: this does NOT work when trying to save character data shortly
+            //       before closing the editor or game because Time.time is 0 then.
+            ExecuteNonQueryMySql(command, "INSERT INTO character_buffs VALUES (@character, @name, @level, @buffTimeEnd)",
+                            new SqlParameter("@character", player.name),
+                            new SqlParameter("@name", buff.name),
+                                 new SqlParameter("@level", buff.level),
+                            new SqlParameter("@buffTimeEnd", (float)buff.BuffTimeRemaining()));
+        }
+    }
+
+    private static void SaveQuests(Player player, MySqlCommand command)
+    {
+        // quests: remove old entries first, then add all new ones
+        ExecuteNonQueryMySql(command, "DELETE FROM character_quests WHERE `character`=@character", new SqlParameter("@character", player.name));
+        foreach (var quest in player.quests)
+        {
+            ExecuteNonQueryMySql(command, "INSERT INTO character_quests VALUES (@character, @name, @killed, @completed)",
+                            new SqlParameter("@character", player.name),
+                            new SqlParameter("@name", quest.name),
+                            new SqlParameter("@killed", quest.killed),
+                            new SqlParameter("@completed", quest.completed));
         }
     }
 
@@ -697,15 +774,15 @@ public partial class Database
         Transaction(command =>
         {
 
-                // online status:
-                //   '' if offline (if just logging out etc.)
-                //   current time otherwise
-                // -> this way it's fault tolerant because external applications can
-                //    check if online != '' and if time difference < saveinterval
-                // -> online time is useful for network zones (server<->server online
-                //    checks), external websites which render dynamic maps, etc.
-                // -> it uses the ISO 8601 standard format
-                DateTime? onlineTimestamp = null;
+            // online status:
+            //   '' if offline (if just logging out etc.)
+            //   current time otherwise
+            // -> this way it's fault tolerant because external applications can
+            //    check if online != '' and if time difference < saveinterval
+            // -> online time is useful for network zones (server<->server online
+            //    checks), external websites which render dynamic maps, etc.
+            // -> it uses the ISO 8601 standard format
+            DateTime? onlineTimestamp = null;
 
             if (!online)
                 onlineTimestamp = DateTime.Now;
@@ -771,101 +848,25 @@ public partial class Database
                         new SqlParameter("@guild", player.guildName == "" ? null : player.guildName)
                            );
 
-            // inventory: remove old entries first, then add all new ones
-            // (we could use UPDATE where slot=... but deleting everything makes
-            //  sure that there are never any ghosts)
-            ExecuteNonQueryMySql(command, "DELETE FROM character_inventory WHERE `character`=@character", new SqlParameter("@character", player.name));
-            for (int i = 0; i < player.inventory.Count; ++i)
-            {
-                var item = player.inventory[i];
-                ExecuteNonQueryMySql(command, "INSERT INTO character_inventory VALUES (@character, @slot, @name, @valid, @amount, @petHealth, @petLevel, @petExperience)",
-                            new SqlParameter("@character", player.name),
-                            new SqlParameter("@slot", i),
-                            new SqlParameter("@name", item.valid ? item.name : ""),
-                            new SqlParameter("@valid", item.valid),
-                            new SqlParameter("@amount", item.valid ? item.amount : 0),
-                            new SqlParameter("@petHealth", item.valid ? item.petHealth : 0),
-                            new SqlParameter("@petLevel", item.valid ? item.petLevel : 0),
-                            new SqlParameter("@petExperience", item.valid ? item.petExperience : 0));
-            }
+            SaveInventory(player, command);
+            SaveEquipment(player, command);
+            SaveSkills(player, command);
+            SaveBuffs(player, command);
+            SaveQuests(player, command);
 
-            // equipment: remove old entries first, then add all new ones
-            // (we could use UPDATE where slot=... but deleting everything makes
-            //  sure that there are never any ghosts)
-            ExecuteNonQueryMySql(command, "DELETE FROM character_equipment WHERE `character`=@character", new SqlParameter("@character", player.name));
-            for (int i = 0; i < player.equipment.Count; ++i)
-            {
-                var item = player.equipment[i];
-                ExecuteNonQueryMySql(command, "INSERT INTO character_equipment VALUES (@character, @slot, @name, @valid, @amount)",
-                                new SqlParameter("@character", player.name),
-                                new SqlParameter("@slot", i),
-                                new SqlParameter("@name", item.valid ? item.name : ""),
-                                new SqlParameter("@valid", item.valid),
-                                new SqlParameter("@amount", item.valid ? item.amount : 0));
-            }
 
-            // skills: remove old entries first, then add all new ones
-            ExecuteNonQueryMySql(command, "DELETE FROM character_skills WHERE `character`=@character", new SqlParameter("@character", player.name));
-            foreach (var skill in player.skills)
-            {
-                // only save relevant skills to save a lot of queries and storage
-                // (considering thousands of players)
-                // => interesting only if learned or if buff/status (murderer etc.)
-                if (skill.learned || skill.BuffTimeRemaining() > 0)
-                {
-                    // castTimeEnd and cooldownEnd are based on Time.time, which
-                    // will be different when restarting the server, so let's
-                    // convert them to the remaining time for easier save & load
-                    // note: this does NOT work when trying to save character data shortly
-                    //       before closing the editor or game because Time.time is 0 then.
-                    ExecuteNonQueryMySql(command, @"
-                    INSERT INTO character_skills 
-                    SET
-                        `character` = @character,
-                        name = @name,
-                        learned = @learned,
-                        castTimeEnd = @castTimeEnd,
-                        cooldownEnd = @cooldownEnd",
-                                        new SqlParameter("@character", player.name),
-                                        new SqlParameter("@name", skill.name),
-                                        new SqlParameter("@learned", skill.learned),
-                                        new SqlParameter("@castTimeEnd", skill.CastTimeRemaining()),
-                                        new SqlParameter("@cooldownEnd", skill.CooldownRemaining()));
-                }
-            }
-
-            // quests: remove old entries first, then add all new ones
-            ExecuteNonQueryMySql(command, "DELETE FROM character_quests WHERE `character`=@character", new SqlParameter("@character", player.name));
-            foreach (var quest in player.quests) 
-            {
-                ExecuteNonQueryMySql(command, "INSERT INTO character_quests VALUES (@character, @name, @killed, @completed)",
-                                new SqlParameter("@character", player.name),
-                                new SqlParameter("@name", quest.name),
-                                new SqlParameter("@killed", quest.killed),
-                                new SqlParameter("@completed", quest.completed));
-            }
-
-            ExecuteNonQueryMySql(command, "DELETE FROM character_buffs WHERE `character`=@character", new SqlParameter("@character", player.name));
-            foreach (var buff in player.buffs)
-            {
-                // buffTimeEnd is based on Time.time, which will be different when
-                // restarting the server, so let's convert them to the remaining
-                // time for easier save & load
-                // note: this does NOT work when trying to save character data shortly
-                //       before closing the editor or game because Time.time is 0 then.
-                ExecuteNonQueryMySql(command, "INSERT INTO character_buffs VALUES (@character, @name, @buffTimeEnd)",
-                                new SqlParameter("@character", player.name),
-                                new SqlParameter("@name", buff.name),
-                                new SqlParameter("@buffTimeEnd", (float)buff.BuffTimeRemaining()));
-            }
-
-                // addon system hooks
+            // addon system hooks
             Utils.InvokeMany(typeof(Database), null, "CharacterSave_", player);
 
 
         });
 
     }
+
+
+
+
+
 
     // save multiple characters at once (useful for ultra fast transactions)
     public static void CharacterSaveMany(List<Player> players, bool online = true)
