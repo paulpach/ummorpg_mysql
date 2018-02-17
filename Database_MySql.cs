@@ -1,5 +1,4 @@
 
-
 using UnityEngine;
 using UnityEngine.Networking;
 using System;
@@ -556,7 +555,7 @@ public partial class Database
                 quest.name = (string)reader["name"];
                 quest.killed = (int)reader["killed"];
                 quest.completed = (bool)reader["completed"];
-                player.quests.Add(quest.TemplateExists() ? quest : new Quest());
+                if (quest.TemplateExists()) player.quests.Add(quest);
             }
         }
     }
@@ -648,10 +647,13 @@ public partial class Database
                 LoadEquipment(player);
                 LoadSkills(player);
                 LoadBuffs(player);
-                player.health = health; // after equip & buffs when healthMax was correctly loaded (otherwise health := max wouldn't work)
-                player.mana = mana; // after equip & buffs when healthMax was correctly loaded  (otherwise health := max wouldn't work)
                 LoadQuests(player);
                 LoadGuild(player);
+
+                // assign health / mana after max values were fully loaded
+                // (they depend on equipment, buffs, etc.)
+                player.health = health;
+                player.mana = mana;
 
                 // addon system hooks
                 Utils.InvokeMany(typeof(Database), null, "CharacterLoad_", player);
@@ -884,7 +886,7 @@ public partial class Database
         {
 
             var query = @"
-            INSERT INTO GUILD_INFO
+            INSERT INTO guild_info
             SET
                 name = @guild,
                 notice = @notice
