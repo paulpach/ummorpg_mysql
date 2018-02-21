@@ -165,7 +165,7 @@ public partial class Database
             amount INT NOT NULL,
         	petHealth INT NOT NULL,
             petLevel INT NOT NULL,
-            petExperience INT NOT NULL,
+            petExperience BIGINT NOT NULL,
 
             primary key(`character`, slot),
         	FOREIGN KEY(`character`)
@@ -434,7 +434,7 @@ public partial class Database
                 item.amount = (int)reader["amount"];
                 item.petHealth = (int)reader["petHealth"];
                 item.petLevel = (int)reader["petLevel"];
-                item.petExperience = (int)reader["petExperience"];
+                item.petExperience = (long)reader["petExperience"];
 
                 var slot = (int)reader["slot"];
 
