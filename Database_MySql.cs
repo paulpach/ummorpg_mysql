@@ -524,18 +524,21 @@ public partial class Database
         {
             while (reader.Read())
             {
-                Buff buff = new Buff();
-                buff.name = (string)reader["name"];
-                // make sure that 1 <= level <= maxlevel (in case we removed a skill
-                // level etc)
-                buff.level = Mathf.Clamp((int)reader["level"], 1, buff.maxLevel);
-                // buffTimeEnd is based on Time.time, which will be
-                // different when restarting a server, hence why we saved
-                // them as just the remaining times. so let's convert them
-                // back again.
-                buff.buffTimeEnd = (float)reader["buffTimeEnd"] + NetworkTime.time;
-                if (buff.TemplateExists()) player.buffs.Add(buff);
-
+                string buffName = (string)reader["name"];
+                SkillTemplate template;
+                if (SkillTemplate.dict.TryGetValue(buffName.GetStableHashCode(), out template))
+                {
+                    // make sure that 1 <= level <= maxlevel (in case we removed a skill
+                    // level etc)
+                    int level = Mathf.Clamp((int)reader["level"], 1, template.maxLevel);
+                    Buff buff = new Buff((BuffSkillTemplate)template, level);
+                    // buffTimeEnd is based on Time.time, which will be
+                    // different when restarting a server, hence why we saved
+                    // them as just the remaining times. so let's convert them
+                    // back again.
+                    buff.buffTimeEnd = (float)reader["buffTimeEnd"] + Time.time;
+                    player.buffs.Add(buff);
+                }
             }
 
         }
