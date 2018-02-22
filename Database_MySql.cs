@@ -428,19 +428,20 @@ public partial class Database
 
             while (reader.Read())
             {
-                var item = new Item();
-                item.name = (string)reader["name"];
-                item.valid = true; // only valid items were saved
-                item.amount = (int)reader["amount"];
-                item.petHealth = (int)reader["petHealth"];
-                item.petLevel = (int)reader["petLevel"];
-                item.petExperience = (long)reader["petExperience"];
+                string itemName = (string)reader["name"];
+                int slot = (int)reader["slot"];
 
-                var slot = (int)reader["slot"];
-
-                // add item if template still exists, otherwise empty
-                if (slot < player.inventorySize && item.TemplateExists())
+                ItemTemplate template;
+                if (slot < player.inventorySize && ItemTemplate.dict.TryGetValue(itemName.GetStableHashCode(), out template))
+                {
+                    Item item = new Item(template);
+                    item.valid = true; // only valid items were saved
+                    item.amount = (int)reader["amount"];
+                    item.petHealth = (int)reader["petHealth"];
+                    item.petLevel = (int)reader["petLevel"];
+                    item.petExperience = (long)reader["petExperience"];
                     player.inventory[slot] = item;
+                }
             }
         }
     }
@@ -454,19 +455,20 @@ public partial class Database
         using (var reader = GetReader(@"SELECT * FROM character_equipment WHERE `character`=@character;",
                                            new SqlParameter("@character", player.name)))
         {
-
-
+            
             while (reader.Read())
             {
-                var slot = (int)reader["slot"];
-                var item = new Item();
-                item.name = (string)reader["name"];
-                item.valid = true; // only valid items were saved
-                item.amount = (int)reader["amount"];
+                string itemName = (string)reader["name"];
+                int slot = (int)reader["slot"];
 
-                // add item if template still exists, otherwise empty
-                if (slot < player.equipmentInfo.Length && item.TemplateExists())
+                ItemTemplate template;
+                if (slot < player.equipmentInfo.Length && ItemTemplate.dict.TryGetValue(itemName.GetStableHashCode(), out template))
+                {
+                    Item item = new Item(template);
+                    item.valid = true; // only valid items were saved
+                    item.amount = (int)reader["amount"];
                     player.equipment[slot] = item;
+                }
             }
         }
     }
@@ -551,11 +553,15 @@ public partial class Database
 
             while (reader.Read())
             {
-                var quest = new Quest();
-                quest.name = (string)reader["name"];
-                quest.killed = (int)reader["killed"];
-                quest.completed = (bool)reader["completed"];
-                if (quest.TemplateExists()) player.quests.Add(quest);
+                string questName = (string)reader["name"];
+                QuestTemplate template;
+                if (QuestTemplate.dict.TryGetValue(questName.GetStableHashCode(), out template))
+                {
+                    Quest quest = new Quest(template);
+                    quest.killed = (int)reader["killed"];
+                    quest.completed = (bool)reader["completed"];
+                    player.quests.Add(quest);
+                }
             }
         }
     }
