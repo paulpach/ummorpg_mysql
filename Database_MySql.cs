@@ -419,7 +419,7 @@ public partial class Database
     {
         // fill all slots first
         for (int i = 0; i < player.inventorySize; ++i)
-            player.inventory.Add(new Item());
+            player.inventory.Add(new ItemSlot());
 
         // override with the inventory stored in database
         using (var reader = GetReader(@"SELECT * FROM character_inventory WHERE `character`=@character;",
@@ -435,12 +435,11 @@ public partial class Database
                 if (slot < player.inventorySize && ItemTemplate.dict.TryGetValue(itemName.GetStableHashCode(), out template))
                 {
                     Item item = new Item(template);
-                    item.valid = true; // only valid items were saved
-                    item.amount = (int)reader["amount"];
+                    int amount = (int)reader["amount"];
                     item.petHealth = (int)reader["petHealth"];
                     item.petLevel = (int)reader["petLevel"];
                     item.petExperience = (long)reader["petExperience"];
-                    player.inventory[slot] = item;
+                    player.inventory[slot] = new ItemSlot(item, amount); ;
                 }
             }
         }
@@ -450,7 +449,7 @@ public partial class Database
     {
         // fill all slots first
         for (int i = 0; i < player.equipmentInfo.Length; ++i)
-            player.equipment.Add(new Item());
+            player.equipment.Add(new ItemSlot());
 
         using (var reader = GetReader(@"SELECT * FROM character_equipment WHERE `character`=@character;",
                                            new SqlParameter("@character", player.name)))
@@ -465,9 +464,8 @@ public partial class Database
                 if (slot < player.equipmentInfo.Length && ItemTemplate.dict.TryGetValue(itemName.GetStableHashCode(), out template))
                 {
                     Item item = new Item(template);
-                    item.valid = true; // only valid items were saved
-                    item.amount = (int)reader["amount"];
-                    player.equipment[slot] = item;
+                    int amount = (int)reader["amount"];
+                    player.equipment[slot] = new ItemSlot(item, amount);
                 }
             }
         }
@@ -682,16 +680,16 @@ public partial class Database
         ExecuteNonQueryMySql(command, "DELETE FROM character_inventory WHERE `character`=@character", new SqlParameter("@character", player.name));
         for (int i = 0; i < player.inventory.Count; ++i)
         {
-            var item = player.inventory[i];
-            if (item.valid) // only relevant items to save queries/storage/time
+            ItemSlot slot = player.inventory[i];
+            if (slot.amount > 0) // only relevant items to save queries/storage/time
                 ExecuteNonQueryMySql(command, "INSERT INTO character_inventory VALUES (@character, @slot, @name, @amount, @petHealth, @petLevel, @petExperience)",
                         new SqlParameter("@character", player.name),
                         new SqlParameter("@slot", i),
-                        new SqlParameter("@name",  item.name),
-                        new SqlParameter("@amount",  item.amount),
-                        new SqlParameter("@petHealth", item.petHealth),
-                        new SqlParameter("@petLevel",  item.petLevel),
-                        new SqlParameter("@petExperience", item.petExperience));
+                        new SqlParameter("@name",  slot.item.name),
+                        new SqlParameter("@amount",  slot.amount),
+                        new SqlParameter("@petHealth", slot.item.petHealth),
+                        new SqlParameter("@petLevel",  slot.item.petLevel),
+                        new SqlParameter("@petExperience", slot.item.petExperience));
         }
     }
 
@@ -703,13 +701,13 @@ public partial class Database
         ExecuteNonQueryMySql(command, "DELETE FROM character_equipment WHERE `character`=@character", new SqlParameter("@character", player.name));
         for (int i = 0; i < player.equipment.Count; ++i)
         {
-            var item = player.equipment[i];
-            if (item.valid) // only relevant equip to save queries/storage/time
+            ItemSlot slot = player.equipment[i];
+            if (slot.amount > 0) // only relevant equip to save queries/storage/time
                 ExecuteNonQueryMySql(command, "INSERT INTO character_equipment VALUES (@character, @slot, @name, @amount)",
                             new SqlParameter("@character", player.name),
                             new SqlParameter("@slot", i),
-                            new SqlParameter("@name", item.name),
-                            new SqlParameter("@amount", item.amount));
+                            new SqlParameter("@name", slot.item.name),
+                            new SqlParameter("@amount", slot.amount));
         }
     }
 
