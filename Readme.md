@@ -28,7 +28,7 @@ collation-server=utf8mb4_unicode_ci
 ```
 4) restart mysql
 5) Create a database and ensure you can connect to it from your server
-6) export these environment variables before running unity or your server:
+6) set these [environment variables](https://www.youtube.com/watch?v=bEroNNzqlF4) before running unity or your server:
 ~~~~
 MYSQL_HOST=<your database server>
 MYSQL_DATABASE=<your database name>
