@@ -496,7 +496,6 @@ public partial class Database
                 if (index != -1)
                 {
                     Skill skill = player.skills[index];
-                    skill.learned = true; // only learned skills were saved
                     // make sure that 1 <= level <= maxlevel (in case we removed a skill
                     // level etc)
                     skill.level = Mathf.Clamp((int)reader["level"], 1, skill.maxLevel);
@@ -720,7 +719,7 @@ public partial class Database
             // only save relevant skills to save a lot of queries and storage
             // (considering thousands of players)
             // => interesting only if learned or if buff/status (murderer etc.)
-            if (skill.learned) // only relevant skills to save queries/storage/time
+            if (skill.level > 0) // only relevant skills to save queries/storage/time
             {
                 // castTimeEnd and cooldownEnd are based on Time.time, which
                 // will be different when restarting the server, so let's
