@@ -201,7 +201,7 @@ public partial class Database
         ) CHARACTER SET=utf8mb4");
 
 
-        ExecuteNonQuery(@"
+        ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS character_buffs (
             `character` VARCHAR(16) NOT NULL,
             name VARCHAR(50) NOT NULL,
