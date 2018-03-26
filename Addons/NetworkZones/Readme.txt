@@ -1,6 +1,7 @@
 It works with uMMORPG ver 1.110 in addition with the NetworkZones_2018-03-16 addon provided by vis2k in the current latest version. 
-This also a drop in replacement for the original Database.cs File.
-You can follow the same steps as you see in the Readme.md from paulpach the only differents are to take this Database_MySql.cs instead the original one.
+
+How to use: 
+Simple add this File NetworkZones_MySql.cs in to your Addons/NetworkZones folder.
 Search for "public partial class Database" in the NetworkZones.cs delete this class or comment it out. 
 
 
