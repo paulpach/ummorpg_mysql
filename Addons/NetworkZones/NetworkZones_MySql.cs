@@ -1,4 +1,3 @@
-
 using UnityEngine;
 using UnityEngine.Networking;
 using System;
@@ -26,13 +25,18 @@ public partial class Database
         CREATE TABLE IF NOT EXISTS character_scene (
             `character` VARCHAR(16) NOT NULL, 
             scenepath VARCHAR(255) NOT NULL,
-            PRIMARY KEY(`character`)
+            PRIMARY KEY(`character`),
+            FOREIGN KEY(`character`)
+                REFERENCES characters(name)
+                ON DELETE CASCADE ON UPDATE CASCADE
             ) CHARACTER SET=utf8mb4");
 
 
         ExecuteNonQueryMySql(@"
         CREATE TABLE IF NOT EXISTS zones_online (
-            online VARCHAR(255) NOT NULL
+            id INT NOT NULL AUTO_INCREMENT,
+            PRIMARY KEY(id),
+            online TIMESTAMP NOT NULL
         ) CHARACTER SET=utf8mb4");
     }
 
@@ -42,7 +46,8 @@ public partial class Database
         object obj = ExecuteScalarMySql("SELECT online FROM characters WHERE name=@name", new SqlParameter("@name", characterName));
         if (obj != null)
         {
-            string online = (string)obj;
+            string online = obj.ToString();
+            
             if (online != "")
             {
                 DateTime time = DateTime.Parse(online);
@@ -69,9 +74,7 @@ public partial class Database
 
     public static void SaveCharacterScenePath(string characterName, string scenePath)
     {
-        ExecuteNonQueryMySql("REPLACE INTO character_scene VALUES (@character, @scenepath)",
-                        new SqlParameter("@character", characterName),
-                        new SqlParameter("@scenepath", scenePath));
+        ExecuteNonQueryMySql("REPLACE INTO character_scene VALUE (@character,@scenepath)", new SqlParameter("@character", characterName), new SqlParameter("@scenepath", scenePath));
     }
 
     // a zone is online if the online string is not empty and if the time
@@ -82,7 +85,7 @@ public partial class Database
         object obj = ExecuteScalarMySql("SELECT online FROM zones_online");
         if (obj != null)
         {
-            string online = (string)obj;
+            string online = obj.ToString();
             if (online != "")
             {
                 DateTime time = DateTime.Parse(online);
@@ -100,8 +103,6 @@ public partial class Database
         //   current time otherwise
         // -> it uses the ISO 8601 standard format
         string onlineString = DateTime.UtcNow.ToString("s");
-        ExecuteNonQueryMySql("DELETE FROM zones_online");
-        ExecuteNonQueryMySql("REPLACE INTO zones_online VALUES (@online)",
-                        new SqlParameter("@online", onlineString));
+        ExecuteNonQueryMySql("REPLACE INTO zones_online VALUE (@id, @online)", new SqlParameter("@id", 1), new SqlParameter("@online", onlineString));
     }
 }
