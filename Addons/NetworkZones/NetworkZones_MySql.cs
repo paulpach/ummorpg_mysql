@@ -43,10 +43,11 @@ public partial class Database
 
     public static bool IsCharacterOnlineAnywhere(string characterName)
     {
-        var time = (DateTime)ExecuteScalarMySql("SELECT online FROM characters WHERE name=@name", new SqlParameter("@name", characterName));
-        if (time != null)
+        var obj = ExecuteScalarMySql("SELECT online FROM characters WHERE name=@name", new SqlParameter("@name", characterName));
+        if (obj != null)
         {
-            double elapsedSeconds = (DateTime.UtcNow - time).TotalSeconds;
+            var time = (DateTime)obj;
+            double elapsedSeconds = (DateTime.Now - time).TotalSeconds;
             float saveInterval = ((NetworkManagerMMO)NetworkManager.singleton).saveInterval;
             //UnityEngine.Debug.Log("datetime=" + time + " elapsed=" + elapsedSeconds + " saveinterval=" + saveInterval);
             return elapsedSeconds < saveInterval * 2;
@@ -76,10 +77,11 @@ public partial class Database
     // (* multiplier to have some tolerance)
     public static double TimeElapsedSinceMainZoneOnline()
     {
-        var time = (DateTime)ExecuteScalarMySql("SELECT online FROM zones_online");
-        if (time != null)
+        var obj = ExecuteScalarMySql("SELECT online FROM zones_online");
+        if (obj != null)
         {
-            return (DateTime.UtcNow - time).TotalSeconds;
+            var time = (DateTime)obj;
+            return (DateTime.Now - time).TotalSeconds;
         }
         return Mathf.Infinity;
     }
@@ -91,7 +93,7 @@ public partial class Database
         //   '' if offline (if just logging out etc.)
         //   current time otherwise
         // -> it uses the ISO 8601 standard format
-        var online = DateTime.UtcNow;
+        var online = DateTime.Now;
         ExecuteNonQueryMySql("REPLACE INTO zones_online VALUE (@id, @online)", new SqlParameter("@id", 1), new SqlParameter("@online", online));
     }
 }
