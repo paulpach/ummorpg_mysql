@@ -83,7 +83,7 @@ public partial class Database
     public static double TimeElapsedSinceMainZoneOnline()
     {
         var time = (MySqlDateTime)ExecuteScalarMySql("SELECT online FROM zones_online");
-        if (!obj.isNull)
+        if (!obj.IsNull)
         {
             return (DateTime.UtcNow - time).TotalSeconds;
         }
