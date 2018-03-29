@@ -69,7 +69,17 @@ public partial class Database
 
     public static void SaveCharacterScenePath(string characterName, string scenePath)
     {
-        ExecuteNonQueryMySql("REPLACE INTO character_scene VALUE (@character,@scenepath)", new SqlParameter("@character", characterName), new SqlParameter("@scenepath", scenePath));
+        var query = @"
+            INSERT INTO character_scene 
+            SET
+                `character`=@character,
+                scenepath=@scenepath
+            ON DUPLICATE KEY UPDATE 
+                scenepath=@scenepath";
+                
+        ExecuteNonQueryMySql(query, 
+                             new SqlParameter("@character", characterName), 
+                             new SqlParameter("@scenepath", scenePath));
     }
 
     // a zone is online if the online string is not empty and if the time
@@ -89,11 +99,16 @@ public partial class Database
     // should only be called by main zone
     public static void SaveMainZoneOnlineTime()
     {
-        // online status:
-        //   '' if offline (if just logging out etc.)
-        //   current time otherwise
-        // -> it uses the ISO 8601 standard format
-        var online = DateTime.Now;
-        ExecuteNonQueryMySql("REPLACE INTO zones_online VALUE (@id, @online)", new SqlParameter("@id", 1), new SqlParameter("@online", online));
+        var query = @"
+            INSERT INTO zones_online 
+            SET
+                id=@id,
+                online=@online
+            ON DUPLICATE KEY UPDATE 
+                online=@online";
+        
+        ExecuteNonQueryMySql(query, 
+                             new SqlParameter("@id", 1), 
+                             new SqlParameter("@online", DateTime.Now));
     }
 }
