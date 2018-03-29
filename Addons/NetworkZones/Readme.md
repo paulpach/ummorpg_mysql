@@ -1,6 +1,6 @@
 # Network Zones
 
-This class implements MySQL backend for the networkzones addon  version 2018-03-16.
+This class implements MySQL backend for the networkzones addon  version 2018-03-22.
 
 ## Installation instructions: 
 1. Add NetworkZones_MySql.cs in to your Addons/NetworkZones folder.
