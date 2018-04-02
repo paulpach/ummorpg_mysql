@@ -38,7 +38,7 @@ MYSQL_PORT=<port to your database,  typically 3306>`
 ~~~~
 7. Run Unity and open your project
 8. Delete Database.cs that comes with uMMORPG
-9. add these files to your project.  You don't need the [Addons](Addons) folder if you don't have NetworkZones.
+9. Add these files to your project.  You don't need the [Addons](Addons) folder if you don't have NetworkZones.
 10. Hit play and enjoy
 11. When you build a server,  make sure to export those environment variables too
 12. (Optional) If you use NetworkZones,  follow [these instructions](Addons/NetworkZones/Readme.md).
