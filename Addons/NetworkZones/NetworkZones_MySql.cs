@@ -13,8 +13,8 @@ using SqlParameter = MySql.Data.MySqlClient.MySqlParameter;
 
 
 /// <summary>
-/// Database class for mysql
-/// Port of the sqlite database class from ummorpg
+/// Adds support for NeworkZones addon.
+/// you can delete this file if you don't use NetworkZones
 /// </summary>
 public partial class Database
 {
