@@ -43,8 +43,6 @@ MYSQL_PORT=<port to your database,  typically 3306>`
 11. When you build a server,  make sure to export those environment variables too
 12. (Optional) If you use NetworkZones,  follow [these instructions](Addons/NetworkZones/Readme.md).
 
-If you use 
-
 Note, many addons add their own tables and columns.  
 They will need to be modified to work with mysql.  
 That is out of my control,  it is entirely up to you to update the addons.
