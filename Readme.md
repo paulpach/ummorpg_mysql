@@ -26,6 +26,11 @@ init_connect='SET NAMES utf8mb4'
 character-set-server=utf8mb4 
 collation-server=utf8mb4_unicode_ci 
 ```
+4. If using mysql 8.0,  also add this to your my.cnf or my.ini
+```
+default-authentication-plugin=mysql_native_password
+```
+
 4. restart mysql
 5. Create a database and ensure you can connect to it from your server
 6. set these [environment variables](https://www.youtube.com/watch?v=bEroNNzqlF4) before running unity or your server:
