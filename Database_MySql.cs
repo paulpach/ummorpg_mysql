@@ -143,7 +143,7 @@ public partial class Database
             deleted BOOLEAN NOT NULL,
 
             guild VARCHAR(16),
-            rank INT,
+            `rank` INT,
 
         	PRIMARY KEY (name),
             INDEX(account),
@@ -582,7 +582,7 @@ public partial class Database
             var members = new List<GuildMember>();
 
             using (var reader = GetReader(
-                "SELECT name, level, rank FROM characters WHERE guild=@guild AND deleted=0",
+                "SELECT name, level, `rank` FROM characters WHERE guild=@guild AND deleted=0",
                 new SqlParameter("@guild", player.guildName)))
             {
 
@@ -911,7 +911,7 @@ public partial class Database
             {
 
                 Debug.Log("Saving guild " + guild + " member " + member.name);
-                ExecuteNonQueryMySql(command, "UPDATE characters set guild = @guild, rank=@rank where name=@character",
+                ExecuteNonQueryMySql(command, "UPDATE characters set guild = @guild, `rank`=@rank where name=@character",
                                 new SqlParameter("@guild", guild),
                                 new SqlParameter("@character", member.name),
                                 new SqlParameter("@rank", member.rank));
