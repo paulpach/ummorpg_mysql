@@ -431,10 +431,10 @@ public partial class Database
                 string itemName = (string)reader["name"];
                 int slot = (int)reader["slot"];
 
-                ItemTemplate template;
-                if (slot < player.inventorySize && ItemTemplate.dict.TryGetValue(itemName.GetStableHashCode(), out template))
+                ScriptableItem itemData;
+                if (slot < player.inventorySize && ScriptableItem.dict.TryGetValue(itemName.GetStableHashCode(), out itemData))
                 {
-                    Item item = new Item(template);
+                    Item item = new Item(itemData);
                     int amount = (int)reader["amount"];
                     item.petHealth = (int)reader["petHealth"];
                     item.petLevel = (int)reader["petLevel"];
@@ -460,10 +460,10 @@ public partial class Database
                 string itemName = (string)reader["name"];
                 int slot = (int)reader["slot"];
 
-                ItemTemplate template;
-                if (slot < player.equipmentInfo.Length && ItemTemplate.dict.TryGetValue(itemName.GetStableHashCode(), out template))
+                ScriptableItem itemData;
+                if (slot < player.equipmentInfo.Length && ScriptableItem.dict.TryGetValue(itemName.GetStableHashCode(), out itemData))
                 {
-                    Item item = new Item(template);
+                    Item item = new Item(itemData);
                     int amount = (int)reader["amount"];
                     player.equipment[slot] = new ItemSlot(item, amount);
                 }
@@ -479,8 +479,8 @@ public partial class Database
         //    which are only for newly created characters)
 
         // fill all slots first
-        foreach (var template in player.skillTemplates)
-            player.skills.Add(new Skill(template));
+        foreach (ScriptableSkill skillData in player.skillTemplates)
+            player.skills.Add(new Skill(skillData));
 
         using (var reader = GetReader(
             "SELECT name, level, castTimeEnd, cooldownEnd FROM character_skills WHERE `character`=@character ",
@@ -524,13 +524,13 @@ public partial class Database
             while (reader.Read())
             {
                 string buffName = (string)reader["name"];
-                SkillTemplate template;
-                if (SkillTemplate.dict.TryGetValue(buffName.GetStableHashCode(), out template))
+                ScriptableSkill skillData;
+                if (ScriptableSkill.dict.TryGetValue(buffName.GetStableHashCode(), out skillData))
                 {
                     // make sure that 1 <= level <= maxlevel (in case we removed a skill
                     // level etc)
-                    int level = Mathf.Clamp((int)reader["level"], 1, template.maxLevel);
-                    Buff buff = new Buff((BuffSkillTemplate)template, level);
+                    int level = Mathf.Clamp((int)reader["level"], 1, skillData.maxLevel);
+                    Buff buff = new Buff((BuffSkill)skillData, level);
                     // buffTimeEnd is based on Time.time, which will be
                     // different when restarting a server, hence why we saved
                     // them as just the remaining times. so let's convert them
@@ -554,10 +554,10 @@ public partial class Database
             while (reader.Read())
             {
                 string questName = (string)reader["name"];
-                QuestTemplate template;
-                if (QuestTemplate.dict.TryGetValue(questName.GetStableHashCode(), out template))
+                ScriptableQuest questData;
+                if (ScriptableQuest.dict.TryGetValue(questName.GetStableHashCode(), out questData))
                 {
-                    Quest quest = new Quest(template);
+                    Quest quest = new Quest(questData);
                     quest.killed = (int)reader["killed"];
                     quest.completed = (bool)reader["completed"];
                     player.quests.Add(quest);
