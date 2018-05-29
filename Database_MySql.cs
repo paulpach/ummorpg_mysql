@@ -479,8 +479,8 @@ public partial class Database
         //    which are only for newly created characters)
 
         // fill all slots first
-        foreach (var template in player.skillTemplates)
-            player.skills.Add(new Skill(template));
+        foreach (ScriptableSkill skillData in player.skillTemplates)
+            player.skills.Add(new Skill(skillData));
 
         using (var reader = GetReader(
             "SELECT name, level, castTimeEnd, cooldownEnd FROM character_skills WHERE `character`=@character ",
