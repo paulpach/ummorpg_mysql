@@ -1,6 +1,6 @@
 
 using UnityEngine;
-using UnityEngine.Networking;
+using Mirror;
 using System;
 using System.IO;
 using System.Linq;
