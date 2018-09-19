@@ -34,7 +34,7 @@ default-authentication-plugin=mysql_native_password
 5. restart mysql
 6. Validate the server settings.  Log into mysql and type:
 ```
-show variables;
+show variables like 'character_set_server';
 ```
 Make sure that the `character_set_server` is set to `utf8mb4`.   If it didn't take the settings search for [all mysql configuration files](https://dev.mysql.com/doc/refman/8.0/en/option-files.html) in your system,  one of them might be overriding your setting.  
 7. Create a database and ensure you can connect to it from your server
