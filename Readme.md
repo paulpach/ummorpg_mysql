@@ -13,6 +13,13 @@ There are a few enhancement I made in this addon not present in the sqlite versi
 * Normalized the tables.
 * Optimize database access.  Don't do so many round trips to the database for inventory, skills and equipment.
 
+# How to contribute
+
+Send me pull requests if you want to see some changes.
+
+Open issues if you find a bug
+
+Or buy me a beer in my [patreon page](https://www.patreon.com/user?u=13679599) if you want to provide code fuel.
 
 # Installation instructions
 
