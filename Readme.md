@@ -95,7 +95,7 @@ Adjust the settings according to your set up
 
 ### 10. Delete Database.cs that comes with uMMORPG
 
-### 11. Add the addon.
+### 11. Add the addon
 
 Download all files from this repository and add them to your project. Put them wherever you want.
 
