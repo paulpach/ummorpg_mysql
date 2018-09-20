@@ -51,7 +51,7 @@ Add this to your my.cnf or my.ini
 default-authentication-plugin=mysql_native_password
 ```
 
-### 5. restart mysql
+### 5. Restart mysql
 
 ### 6. Validate 
 
