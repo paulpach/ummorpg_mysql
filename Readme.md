@@ -73,8 +73,8 @@ Create a user and database in mysql for your game.  For example:
 
 ```
 create database ummorpg;
-create user ummorpg;
-grant all on ummorpg.* to 'ummorpg'@'%' identified by 'db_password';
+create user 'ummorpg'@'%'  identified by 'db_password';
+grant all on ummorpg.* to 'ummorpg'@'%';
 ```
 
 Make sure you can connect to your database from your server using the newly created account and database.
