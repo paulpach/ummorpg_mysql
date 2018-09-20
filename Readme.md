@@ -83,7 +83,7 @@ Make sure you can connect to your database from your server using the newly crea
 
 Now you must tell ummorpg how to get to that database. Out of the box you do that by setting environment variables before running unity or your server. 
 
-For windows: [environment variables](https://www.youtube.com/watch?v=bEroNNzqlF4)
+For windows: [environment variables](https://www.youtube.com/watch?v=bEroNNzqlF4).
 For linux and mac,  add them to your `~/.bash_profile` 
 
 ~~~~
@@ -96,7 +96,7 @@ MYSQL_PORT=3306
 
 Adjust the settings according to your set up
 
-If you don’t want to use environment variables, change the method `ConnectionString` near the top in `Database.cs`. I use environment variables because I deploy my server in docker containers.  
+If you don’t want to use environment variables, change the method `ConnectionString` near the top in `Database_MySql.cs`. I use environment variables because I deploy my server in docker containers.  
 
 ### 9. Run Unity and open your project
 
@@ -118,6 +118,7 @@ follow [these instructions](Addons/NetworkZones/Readme.md).
 Many addons add their own tables and columns.  
 They will need to be modified to work with mysql.  
 That is out of my control,  it is entirely up to you to update the addons.
+If you do adapt the addons,  consider sending me a pull request so that other people can benefit.
 
 If you get `KeyNotFoundException: The given key was not present in the dicionary` it is likely that you are using the wrong character set.  Go back to step 6 and make sure it is correctly configured.
 
