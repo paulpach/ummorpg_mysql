@@ -96,7 +96,7 @@ MYSQL_PORT=3306
 
 Adjust the settings according to your set up
 
-If you don’t want to use environment variables, change where these fields are coming from in the method `ConnectionString` near the top in `Database.cs`. I use environment variables because I deploy my server in docker containers.  
+If you don’t want to use environment variables, change the method `ConnectionString` near the top in `Database.cs`. I use environment variables because I deploy my server in docker containers.  
 
 ### 9. Run Unity and open your project
 
