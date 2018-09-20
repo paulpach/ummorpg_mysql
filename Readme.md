@@ -19,7 +19,7 @@ Send me pull requests if you want to see some changes.
 
 Open issues if you find a bug
 
-Or buy me a beer in my [patreon page](https://www.patreon.com/user?u=13679599) if you want to provide code fuel.
+Or buy me a beer in my [patreon page](https://www.patreon.com/user?u=13679599) if you want to provide brain fuel.
 
 # Installation instructions
 
