@@ -96,6 +96,8 @@ MYSQL_PORT=3306
 
 Adjust the settings according to your set up
 
+If you don’t want to use environment variables, change where these fields are coming from in the method `ConnectionString` near the top in `Database.cs`. I use environment variables because I deploy my server in docker containers.  
+
 ### 9. Run Unity and open your project
 
 ### 10. Delete Database.cs that comes with uMMORPG
@@ -117,10 +119,7 @@ Many addons add their own tables and columns.
 They will need to be modified to work with mysql.  
 That is out of my control,  it is entirely up to you to update the addons.
 
-If you don’t want to use environment variables, change where these fields are coming from in the method `ConnectionString` near the top. I use environment variables because I deploy my server in docker containers.
-
 If you get `KeyNotFoundException: The given key was not present in the dicionary` it is likely that you are using the wrong character set.  Go back to step 6 and make sure it is correctly configured.
-
 
 This is provided as is,  no warranty,  I am not responsible if it offers your first born child in sacrifice to the devil.  
 I am simply offering it for free for anyone who might want it.
