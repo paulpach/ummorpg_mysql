@@ -17,7 +17,9 @@ There are a few enhancement I made in this addon not present in the sqlite versi
 ## Installation instructions
 
 1. Backup,  you have been warned
+
 2. Install mysql
+
 3. edit my.cnf or my.ini and add this:
 ```
 [mysqld]
@@ -26,18 +28,21 @@ init_connect='SET NAMES utf8mb4'
 character-set-server=utf8mb4 
 collation-server=utf8mb4_unicode_ci 
 ```
+
 4. If using mysql 8.0,  also add this to your my.cnf or my.ini
 ```
 default-authentication-plugin=mysql_native_password
 ```
 
 5. restart mysql
+
 6. Validate the server settings.  Log into mysql and type:
 ```
 show variables like 'character_set_server';
 ```
 Make sure that the `character_set_server` is set to `utf8mb4`.   If it didn't take the settings search for [all mysql configuration files](https://dev.mysql.com/doc/refman/8.0/en/option-files.html) in your system,  one of them might be overriding your setting.  
 7. Create a database and ensure you can connect to it from your server
+
 8. set these [environment variables](https://www.youtube.com/watch?v=bEroNNzqlF4) before running unity or your server:
 ~~~~
 MYSQL_HOST=<your database server>
@@ -47,10 +52,15 @@ MYSQL_PASSWORD=<password to connect to your database>
 MYSQL_PORT=<port to your database,  typically 3306>`
 ~~~~
 9. Run Unity and open your project
+
 10. Delete Database.cs that comes with uMMORPG
+
 11. Add these files to your project.  You don't need the [Addons](Addons) folder if you don't have NetworkZones.
+
 12. Hit play and enjoy
+
 13. When you build a server,  make sure to export those environment variables too
+
 14. (Optional) If you use NetworkZones,  follow [these instructions](Addons/NetworkZones/Readme.md).
 
 Note, many addons add their own tables and columns.  
