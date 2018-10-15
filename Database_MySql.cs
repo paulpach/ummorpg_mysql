@@ -219,7 +219,7 @@ public partial class Database
         CREATE TABLE IF NOT EXISTS character_quests(
             `character` VARCHAR(16) NOT NULL,
             name VARCHAR(50) NOT NULL,
-            killed INT NOT NULL,
+            field0 INT NOT NULL,
         	completed BOOLEAN NOT NULL,
 
             PRIMARY KEY(`character`, name),
@@ -547,7 +547,7 @@ public partial class Database
     {
         // load quests
 
-        using (var reader = GetReader("SELECT name, killed, completed FROM character_quests WHERE `character`=@character",
+        using (var reader = GetReader("SELECT name, field0, completed FROM character_quests WHERE `character`=@character",
                                            new SqlParameter("@character", player.name)))
         {
 
@@ -558,7 +558,7 @@ public partial class Database
                 if (ScriptableQuest.dict.TryGetValue(questName.GetStableHashCode(), out questData))
                 {
                     Quest quest = new Quest(questData);
-                    quest.killed = (int)reader["killed"];
+                    quest.field0 = (int)reader["field0"];
                     quest.completed = (bool)reader["completed"];
                     player.quests.Add(quest);
                 }
@@ -767,10 +767,10 @@ public partial class Database
         ExecuteNonQueryMySql(command, "DELETE FROM character_quests WHERE `character`=@character", new SqlParameter("@character", player.name));
         foreach (var quest in player.quests)
         {
-            ExecuteNonQueryMySql(command, "INSERT INTO character_quests VALUES (@character, @name, @killed, @completed)",
+            ExecuteNonQueryMySql(command, "INSERT INTO character_quests VALUES (@character, @name, @field0, @completed)",
                             new SqlParameter("@character", player.name),
                             new SqlParameter("@name", quest.name),
-                            new SqlParameter("@killed", quest.killed),
+                            new SqlParameter("@field0", quest.field0),
                             new SqlParameter("@completed", quest.completed));
         }
     }
