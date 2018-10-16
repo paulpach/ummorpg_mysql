@@ -242,22 +242,15 @@ public partial class Database
                 REFERENCES characters(name)
                 ON DELETE CASCADE ON UPDATE CASCADE
         ) CHARACTER SET=utf8mb4");
-
-
-
-
-
     }
 
     static Database()
     {
-        Debug.Log("Initializing database");
-
+        Debug.Log("Initializing MySQL database");
 
         InitializeSchema();
 
         Utils.InvokeMany(typeof(Database), null, "Initialize_");
-
     }
 
     #region Helper Functions
@@ -265,62 +258,121 @@ public partial class Database
     // run a query that doesn't return anything
     private static void ExecuteNonQueryMySql(string sql, params SqlParameter[] args)
     {
-        MySqlHelper.ExecuteNonQuery(ConnectionString, sql, args);
+        try
+        {
+            MySqlHelper.ExecuteNonQuery(ConnectionString, sql, args);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogErrorFormat("Failed to execute query {0}", sql);
+            throw ex;
+        }
+
     }
 
 
     private static void ExecuteNonQueryMySql(MySqlCommand command, string sql, params SqlParameter[] args)
     {
-        command.CommandText = sql;
-        command.Parameters.Clear();
-
-        foreach (var arg in args)
+        try
         {
-            command.Parameters.Add(arg);
+            command.CommandText = sql;
+            command.Parameters.Clear();
+
+            foreach (var arg in args)
+            {
+                command.Parameters.Add(arg);
+            }
+
+            command.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogErrorFormat("Failed to execute query {0}", sql);
+            throw ex;
         }
 
-        command.ExecuteNonQuery();
     }
 
     // run a query that returns a single value
     private static object ExecuteScalarMySql(string sql, params SqlParameter[] args)
     {
-        return MySqlHelper.ExecuteScalar(ConnectionString, sql, args);
+        try
+        {
+            return MySqlHelper.ExecuteScalar(ConnectionString, sql, args);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogErrorFormat("Failed to execute query {0}", sql);
+            throw ex;
+        }
     }
 
     private static DataRow ExecuteDataRowMySql(string sql, params SqlParameter[] args)
     {
-        return MySqlHelper.ExecuteDataRow(ConnectionString, sql, args);
+        try
+        {
+            return MySqlHelper.ExecuteDataRow(ConnectionString, sql, args);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogErrorFormat("Failed to execute query {0}", sql);
+            throw ex;
+        }
     }
 
     private static DataSet ExecuteDataSetMySql(string sql, params SqlParameter[] args)
     {
-        return MySqlHelper.ExecuteDataset(ConnectionString, sql, args);
+        try
+        {
+            return MySqlHelper.ExecuteDataset(ConnectionString, sql, args);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogErrorFormat("Failed to execute query {0}", sql);
+            throw ex;
+        }
     }
 
     // run a query that returns several values
     private static List<List<object>> ExecuteReaderMySql(string sql, params SqlParameter[] args)
     {
-        var result = new List<List<object>>();
-
-        using (var reader = MySqlHelper.ExecuteReader(ConnectionString, sql, args))
+        try
         {
+            var result = new List<List<object>>();
 
-            while (reader.Read())
+            using (var reader = MySqlHelper.ExecuteReader(ConnectionString, sql, args))
             {
-                var buf = new object[reader.FieldCount];
-                reader.GetValues(buf);
-                result.Add(buf.ToList());
+
+                while (reader.Read())
+                {
+                    var buf = new object[reader.FieldCount];
+                    reader.GetValues(buf);
+                    result.Add(buf.ToList());
+                }
             }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogErrorFormat("Failed to execute query {0}", sql);
+            throw ex;
         }
 
-        return result;
     }
 
     // run a query that returns several values
     private static MySqlDataReader GetReader(string sql, params SqlParameter[] args)
     {
-        return MySqlHelper.ExecuteReader(ConnectionString, sql, args);
+        try
+        {
+            return MySqlHelper.ExecuteReader(ConnectionString, sql, args);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogErrorFormat("Failed to execute query {0}", sql);
+            throw ex;
+        }
     }
 
     #endregion
@@ -381,7 +433,6 @@ public partial class Database
                 // account doesn't exist. create it.
                 ExecuteNonQueryMySql("INSERT INTO accounts VALUES (@name, @password, 0)", new SqlParameter("@name", account), new SqlParameter("@password", password));
                 return true;
-
             }
         }
         return false;
@@ -454,7 +505,7 @@ public partial class Database
         using (var reader = GetReader(@"SELECT * FROM character_equipment WHERE `character`=@character;",
                                            new SqlParameter("@character", player.name)))
         {
-            
+
             while (reader.Read())
             {
                 string itemName = (string)reader["name"];
@@ -671,7 +722,7 @@ public partial class Database
         return null;
     }
 
-    private static void SaveInventory(Player player, MySqlCommand command)
+    static void SaveInventory(Player player, MySqlCommand command)
     {
         // inventory: remove old entries first, then add all new ones
         // (we could use UPDATE where slot=... but deleting everything makes
@@ -684,15 +735,15 @@ public partial class Database
                 ExecuteNonQueryMySql(command, "INSERT INTO character_inventory VALUES (@character, @slot, @name, @amount, @petHealth, @petLevel, @petExperience)",
                         new SqlParameter("@character", player.name),
                         new SqlParameter("@slot", i),
-                        new SqlParameter("@name",  slot.item.name),
-                        new SqlParameter("@amount",  slot.amount),
+                        new SqlParameter("@name", slot.item.name),
+                        new SqlParameter("@amount", slot.amount),
                         new SqlParameter("@petHealth", slot.item.petHealth),
-                        new SqlParameter("@petLevel",  slot.item.petLevel),
+                        new SqlParameter("@petLevel", slot.item.petLevel),
                         new SqlParameter("@petExperience", slot.item.petExperience));
         }
     }
 
-    private static void SaveEquipment(Player player, MySqlCommand command)
+    static void SaveEquipment(Player player, MySqlCommand command)
     {
         // equipment: remove old entries first, then add all new ones
         // (we could use UPDATE where slot=... but deleting everything makes
@@ -710,7 +761,7 @@ public partial class Database
         }
     }
 
-    private static void SaveSkills(Player player, MySqlCommand command)
+    static void SaveSkills(Player player, MySqlCommand command)
     {
         // skills: remove old entries first, then add all new ones
         ExecuteNonQueryMySql(command, "DELETE FROM character_skills WHERE `character`=@character", new SqlParameter("@character", player.name));
@@ -743,7 +794,7 @@ public partial class Database
         }
     }
 
-    private static void SaveBuffs(Player player, MySqlCommand command)
+    static void SaveBuffs(Player player, MySqlCommand command)
     {
         ExecuteNonQueryMySql(command, "DELETE FROM character_buffs WHERE `character`=@character", new SqlParameter("@character", player.name));
         foreach (var buff in player.buffs)
@@ -761,7 +812,7 @@ public partial class Database
         }
     }
 
-    private static void SaveQuests(Player player, MySqlCommand command)
+    static void SaveQuests(Player player, MySqlCommand command)
     {
         // quests: remove old entries first, then add all new ones
         ExecuteNonQueryMySql(command, "DELETE FROM character_quests WHERE `character`=@character", new SqlParameter("@character", player.name));
@@ -776,26 +827,22 @@ public partial class Database
     }
 
     // adds or overwrites character data in the database
-    public static void CharacterSave(Player player, bool online, bool useTransaction = true)
+    static void CharacterSave(Player player, bool online, MySqlCommand command)
     {
-        // only use a transaction if not called within SaveMany transaction
-        Transaction(command =>
-        {
+        // online status:
+        //   '' if offline (if just logging out etc.)
+        //   current time otherwise
+        // -> this way it's fault tolerant because external applications can
+        //    check if online != '' and if time difference < saveinterval
+        // -> online time is useful for network zones (server<->server online
+        //    checks), external websites which render dynamic maps, etc.
+        // -> it uses the ISO 8601 standard format
+        DateTime? onlineTimestamp = null;
 
-            // online status:
-            //   '' if offline (if just logging out etc.)
-            //   current time otherwise
-            // -> this way it's fault tolerant because external applications can
-            //    check if online != '' and if time difference < saveinterval
-            // -> online time is useful for network zones (server<->server online
-            //    checks), external websites which render dynamic maps, etc.
-            // -> it uses the ISO 8601 standard format
-            DateTime? onlineTimestamp = null;
+        if (!online)
+            onlineTimestamp = DateTime.Now;
 
-            if (!online)
-                onlineTimestamp = DateTime.Now;
-
-            var query = @"
+        var query = @"
             INSERT INTO characters 
             SET
                 name=@name,
@@ -836,61 +883,63 @@ public partial class Database
                 guild = @guild
             ";
 
-            ExecuteNonQueryMySql(command, query,
-                        new SqlParameter("@name", player.name),
-                        new SqlParameter("@account", player.account),
-                        new SqlParameter("@class", player.className),
-                        new SqlParameter("@x", player.transform.position.x),
-                        new SqlParameter("@y", player.transform.position.y),
-                        new SqlParameter("@z", player.transform.position.z),
-                        new SqlParameter("@level", player.level),
-                        new SqlParameter("@health", player.health),
-                        new SqlParameter("@mana", player.mana),
-                        new SqlParameter("@strength", player.strength),
-                        new SqlParameter("@intelligence", player.intelligence),
-                        new SqlParameter("@experience", player.experience),
-                        new SqlParameter("@skillExperience", player.skillExperience),
-                        new SqlParameter("@gold", player.gold),
-                        new SqlParameter("@coins", player.coins),
-                        new SqlParameter("@online", onlineTimestamp),
-                        new SqlParameter("@guild", player.guildName == "" ? null : player.guildName)
-                           );
+        ExecuteNonQueryMySql(command, query,
+                    new SqlParameter("@name", player.name),
+                    new SqlParameter("@account", player.account),
+                    new SqlParameter("@class", player.className),
+                    new SqlParameter("@x", player.transform.position.x),
+                    new SqlParameter("@y", player.transform.position.y),
+                    new SqlParameter("@z", player.transform.position.z),
+                    new SqlParameter("@level", player.level),
+                    new SqlParameter("@health", player.health),
+                    new SqlParameter("@mana", player.mana),
+                    new SqlParameter("@strength", player.strength),
+                    new SqlParameter("@intelligence", player.intelligence),
+                    new SqlParameter("@experience", player.experience),
+                    new SqlParameter("@skillExperience", player.skillExperience),
+                    new SqlParameter("@gold", player.gold),
+                    new SqlParameter("@coins", player.coins),
+                    new SqlParameter("@online", onlineTimestamp),
+                    new SqlParameter("@guild", player.guildName == "" ? null : player.guildName)
+                       );
 
-            SaveInventory(player, command);
-            SaveEquipment(player, command);
-            SaveSkills(player, command);
-            SaveBuffs(player, command);
-            SaveQuests(player, command);
+        SaveInventory(player, command);
+        SaveEquipment(player, command);
+        SaveSkills(player, command);
+        SaveBuffs(player, command);
+        SaveQuests(player, command);
 
-
-            // addon system hooks
-            Utils.InvokeMany(typeof(Database), null, "CharacterSave_", player);
-
-
-        });
-
+        // addon system hooks
+        Utils.InvokeMany(typeof(Database), null, "CharacterSave_", player);
     }
 
-
-
+    // adds or overwrites character data in the database
+    public static void CharacterSave(Player player, bool online, bool useTransaction = true)
+    {
+        // only use a transaction if not called within SaveMany transaction
+        Transaction(command =>
+        {
+            CharacterSave(player, online, command);
+        });
+    }
 
 
 
     // save multiple characters at once (useful for ultra fast transactions)
     public static void CharacterSaveMany(List<Player> players, bool online = true)
     {
-
-        foreach (var player in players)
-            CharacterSave(player, online, false);
+        Transaction(command =>
+        {
+            foreach (var player in players)
+                CharacterSave(player, online, command);
+        });
     }
 
     // guilds //////////////////////////////////////////////////////////////////
     public static void SaveGuild(string guild, string notice, List<GuildMember> members)
     {
-
         Transaction(command =>
         {
-
             var query = @"
             INSERT INTO guild_info
             SET
@@ -899,10 +948,10 @@ public partial class Database
             ON DUPLICATE KEY UPDATE
                 notice = @notice";
 
-                // guild info
-                ExecuteNonQueryMySql(command, query,
-                                    new SqlParameter("@guild", guild),
-                                    new SqlParameter("@notice", notice));
+            // guild info
+            ExecuteNonQueryMySql(command, query,
+                                new SqlParameter("@guild", guild),
+                                new SqlParameter("@notice", notice));
 
             ExecuteNonQueryMySql(command, "UPDATE characters set guild = NULL where guild=@guild", new SqlParameter("@guild", guild));
 
@@ -916,7 +965,6 @@ public partial class Database
                                 new SqlParameter("@character", member.name),
                                 new SqlParameter("@rank", member.rank));
             }
-
         });
     }
 
