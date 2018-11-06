@@ -40,8 +40,8 @@ public partial class Database
                     UserID = GetEnv("MYSQL_USER") ?? "ummorpg",
                     Password = GetEnv("MYSQL_PASSWORD") ?? "",
                     Port = GetUIntEnv("MYSQL_PORT", 3306),
-                    CharacterSet = "utf8"
-
+                    CharacterSet = "utf8",
+                    OldGuids=true
                 };
                 connectionString = connectionStringBuilder.ConnectionString;
             }
