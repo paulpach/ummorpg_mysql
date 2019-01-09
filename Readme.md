@@ -114,6 +114,49 @@ follow [these instructions](Addons/NetworkZones/Readme.md).
 
 ### 13. Hit play and enjoy
 
+# Docker instructions
+
+### 1. Download and Install Docker
+
+Depending on the operating system you want to use follow these directions: https://docs.docker.com/install/  
+
+Note: According to the MySQL Docker help page you cannot set the value 'MYSQL_HOST=localhost' as it casues issue. So far I have not had an issue leaving it out of the configuration.
+
+### 2. Create MySQL container (if MySQL version 7 or earlier)
+
+```
+docker run --name mysql \
+-p 3306:3306 \
+--restart always \
+-v /docker/mysql/datadir:/var/lib/mysql \
+-e MYSQL_ROOT_PASSWORD=CHANGEMEPLEASE \
+-e MYSQL_DATABASE=ummorpg \
+-e MYSQL_USER=ummorpg \
+-e MYSQL_PASSWORD=db_password \
+-d mysql:5.7.24 \
+--character-set-server=utf8mb4 \
+--collation-server=utf8mb4_unicode_ci
+```
+
+### 3. Create MySQL container (if MySQL 8 or later) THIS IS UNTESTED AT THIS TIME.
+
+```
+docker run --name mysql \
+-p 3306:3306 \
+--restart always \
+-v /docker/mysql/datadir:/var/lib/mysql \
+-e MYSQL_ROOT_PASSWORD=CHANGEMEPLEASE \
+-e MYSQL_DATABASE=ummorpg \
+-e MYSQL_USER=ummorpg \
+-e MYSQL_PASSWORD=db_password \
+-d mysql:latest \
+--character-set-server=utf8mb4 \
+--collation-server=utf8mb4_unicode_ci \
+--default-authentication-plugin=mysql_native_password
+```
+
+### 4. For more information about MySQL in Docker please see this page: https://hub.docker.com/_/mysql/  
+
 # Troubleshooting
 Many addons add their own tables and columns.  
 They will need to be modified to work with mysql.  
