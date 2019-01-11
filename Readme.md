@@ -23,13 +23,13 @@ Or buy me a beer in my [patreon page](https://www.patreon.com/user?u=13679599) i
 
 # Installation instructions
 
-### 1. Backup  
+## 1. Backup  
 you have been warned
 
-### 2. Install mysql
+## 2. Install mysql
 I recommend mysql 8.0 or later [community edition](https://dev.mysql.com/downloads/). 
 
-### 3. Set character encoding (if MySQL version 7 or earlier)
+## 3. Set character encoding (if MySQL version 7 or earlier)
 If using MySQL 7 or earlier,  the default character set is `latin1`, which causes problems for the mysql driver.
 You need to change it to utf8mb4 or you will get exceptions
 
@@ -42,7 +42,7 @@ character-set-server=utf8mb4
 collation-server=utf8mb4_unicode_ci 
 ```
 
-### 4. Set mysql native password (if MySQL 8 or later)
+## 4. Set mysql native password (if MySQL 8 or later)
 
 By default,  mysql 8 uses `caching_sha2_password` authentication method.  We must use a .net 3.5 driver.  It is too old and does not support this authentication method.   You must change mysql to use `mysql_native_password` instead.
 
@@ -51,9 +51,9 @@ Add this to your my.cnf or my.ini
 default-authentication-plugin=mysql_native_password
 ```
 
-### 5. Restart mysql
+## 5. Restart mysql
 
-### 6. Validate 
+## 6. Validate 
 
 Log into mysql and type:
 ```
@@ -68,7 +68,7 @@ show variables like "default_authentication_plugin";
 
 Make sure it says `mysql_native_password`
 
-### 7. Create a database 
+## 7. Create a database 
 Create a user and database in mysql for your game.  For example:
 
 ```
@@ -79,7 +79,7 @@ grant all on ummorpg.* to 'ummorpg'@'%';
 
 Make sure you can connect to your database from your server using the newly created account and database.
 
-### 8. Set environment variables
+## 8. Set environment variables
 
 Now you must tell ummorpg how to get to that database. Out of the box you do that by setting environment variables before running unity or your server. 
 
@@ -98,31 +98,33 @@ Adjust the settings according to your set up
 
 If you don’t want to use environment variables, change the method `ConnectionString` near the top in `Database_MySql.cs`. I use environment variables because I deploy my server in docker containers.  
 
-### 9. Run Unity and open your project
+## 9. Run Unity and open your project
 
-### 10. Delete Database.cs that comes with uMMORPG
+## 10. Delete Database.cs that comes with uMMORPG
 
-### 11. Add the addon
+## 11. Add the addon
 
 Download all files from this repository and add them to your project. Put them wherever you want.
 
 You don't need the [Addons](Addons) folder if you don't have NetworkZones.
 
-### 12. Set up NetworkZones (optional)
+## 12. Set up NetworkZones (optional)
 
 follow [these instructions](Addons/NetworkZones/Readme.md).
 
-### 13. Hit play and enjoy
+## 13. Hit play and enjoy
 
 # Docker instructions
 
-### 1. Download and Install Docker
+As an option, you can run Mysql in a docker container.
+
+## 1. Download and Install Docker
 
 Depending on the operating system you want to use follow these directions: https://docs.docker.com/install/  
 
 Note: According to the MySQL Docker help page you cannot set the value 'MYSQL_HOST=localhost' as it casues issue. So far I have not had an issue leaving it out of the configuration.
 
-### 2. Create MySQL container (if MySQL version 7 or earlier)
+## 2. Create MySQL container (if MySQL version 7 or earlier)
 
 ```
 docker run --name mysql \
@@ -138,7 +140,7 @@ docker run --name mysql \
 --collation-server=utf8mb4_unicode_ci
 ```
 
-### 3. Create MySQL container (if MySQL 8 or later) THIS IS UNTESTED AT THIS TIME.
+## 3. Create MySQL container (if MySQL 8 or later) THIS IS UNTESTED AT THIS TIME.
 
 ```
 docker run --name mysql \
@@ -155,7 +157,7 @@ docker run --name mysql \
 --default-authentication-plugin=mysql_native_password
 ```
 
-### 4. For more information about MySQL in Docker please see this page: https://hub.docker.com/_/mysql/  
+## 4. For more information about MySQL in Docker please see this page: https://hub.docker.com/_/mysql/  
 
 # Troubleshooting
 Many addons add their own tables and columns.  
