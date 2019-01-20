@@ -163,9 +163,9 @@ public partial class Database
             slot INT NOT NULL,
         	name VARCHAR(50) NOT NULL,
             amount INT NOT NULL,
-        	petHealth INT NOT NULL,
-            petLevel INT NOT NULL,
-            petExperience BIGINT NOT NULL,
+        	summonedHealth INT NOT NULL,
+            summonedLevel INT NOT NULL,
+            summonedExperience BIGINT NOT NULL,
 
             primary key(`character`, slot),
         	FOREIGN KEY(`character`)
@@ -487,9 +487,9 @@ public partial class Database
                 {
                     Item item = new Item(itemData);
                     int amount = (int)reader["amount"];
-                    item.petHealth = (int)reader["petHealth"];
-                    item.petLevel = (int)reader["petLevel"];
-                    item.petExperience = (long)reader["petExperience"];
+                    item.summonedHealth = (int)reader["summonedHealth"];
+                    item.summonedLevel = (int)reader["summonedLevel"];
+                    item.summonedExperience = (long)reader["summonedExperience"];
                     player.inventory[slot] = new ItemSlot(item, amount); ;
                 }
             }
@@ -732,14 +732,14 @@ public partial class Database
         {
             ItemSlot slot = player.inventory[i];
             if (slot.amount > 0) // only relevant items to save queries/storage/time
-                ExecuteNonQueryMySql(command, "INSERT INTO character_inventory VALUES (@character, @slot, @name, @amount, @petHealth, @petLevel, @petExperience)",
+                ExecuteNonQueryMySql(command, "INSERT INTO character_inventory VALUES (@character, @slot, @name, @amount, @summonedHealth, @summonedLevel, @summonedExperience)",
                         new SqlParameter("@character", player.name),
                         new SqlParameter("@slot", i),
                         new SqlParameter("@name", slot.item.name),
                         new SqlParameter("@amount", slot.amount),
-                        new SqlParameter("@petHealth", slot.item.petHealth),
-                        new SqlParameter("@petLevel", slot.item.petLevel),
-                        new SqlParameter("@petExperience", slot.item.petExperience));
+                        new SqlParameter("@summonedHealth", slot.item.summonedHealth),
+                        new SqlParameter("@summonedLevel", slot.item.summonedLevel),
+                        new SqlParameter("@summonedExperience", slot.item.summonedExperience));
         }
     }
 
